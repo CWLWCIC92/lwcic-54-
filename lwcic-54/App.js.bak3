@@ -45,8 +45,8 @@ function LoginScreen({ onLogin }) {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) onLogin(null); // fall back to demo
-      else { const { data: { user } } = await supabase.auth.getUser(); onLogin(user); }
+      if (error) onLogin(); // fall back to demo
+      else onLogin();
     } catch {
       onLogin();
     } finally {
@@ -81,7 +81,7 @@ function LoginScreen({ onLogin }) {
           <TouchableOpacity style={s.btn} onPress={handleLogin} disabled={loading}>
             {loading ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Sign In</Text>}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onLogin(null)}>
+          <TouchableOpacity onPress={onLogin}>
             <Text style={s.demoText}>Continue as Guest (Demo)</Text>
           </TouchableOpacity>
         </View>
@@ -160,13 +160,13 @@ function WatchScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('sermons').select('id, title, speaker, sermon_date, series, video_url').order('sermon_date', { ascending: false }).limit(10);
+      const { data } = await supabase.from('sermons').select('*').order('date', { ascending: false }).limit(10);
       if (data?.length) setSermons(data);
       else setSermons([
-        { id: '1', title: 'Walking in Faith', speaker: 'Pastor Baldwin', sermon_date: '2026-03-09', series: 'Faith Series' },
-        { id: '2', title: 'The Power of Prayer', speaker: 'Pastor Baldwin', sermon_date: '2026-03-02', series: 'Prayer Series' },
-        { id: '3', title: 'Grace & Truth', speaker: 'Pastor Baldwin', sermon_date: '2026-02-23', series: 'Grace Series' },
-        { id: '4', title: 'Living Water', speaker: 'Pastor Baldwin', sermon_date: '2026-02-16', series: 'John Series' },
+        { id: '1', title: 'Walking in Faith', speaker: 'Pastor Baldwin', date: '2026-03-09', series: 'Faith Series' },
+        { id: '2', title: 'The Power of Prayer', speaker: 'Pastor Baldwin', date: '2026-03-02', series: 'Prayer Series' },
+        { id: '3', title: 'Grace & Truth', speaker: 'Pastor Baldwin', date: '2026-02-23', series: 'Grace Series' },
+        { id: '4', title: 'Living Water', speaker: 'Pastor Baldwin', date: '2026-02-16', series: 'John Series' },
       ]);
       setLoading(false);
     };
@@ -184,14 +184,14 @@ function WatchScreen() {
           keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={s.card} onPress={() => { if (item.video_url) { require('react-native').Linking.openURL(item.video_url); } else { require('react-native').Alert.alert('No Video', 'No video available yet.'); } }}>
+            <TouchableOpacity style={s.card} onPress={() => setPlaying(playing === item.id ? null : item.id)}>
               <View style={s.row}>
                 <View style={[s.playBtn, { backgroundColor: playing === item.id ? C.teal : C.navy }]}>
                   <Text style={{ color: C.white, fontSize: 18 }}>{playing === item.id ? '⏸' : '▶'}</Text>
                 </View>
                 <View style={s.flex}>
                   <Text style={s.cardTitle}>{item.title}</Text>
-                  <Text style={s.cardBody}>{item.speaker} • {item.sermon_date || item.date}</Text>
+                  <Text style={s.cardBody}>{item.speaker} • {item.date}</Text>
                   {item.series && <Text style={[s.cardBody, { color: C.teal }]}>{item.series}</Text>}
                 </View>
               </View>
@@ -215,25 +215,40 @@ function WatchScreen() {
 function GiveScreen() {
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
-  const [fund, setFund] = useState('Tithe');
+  const [fund, setFund] = useState('Tithes & Offerings');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const funds = ['Tithe', 'Offering', 'Building Fund', 'Missions', 'Love Offering'];
+  const funds = ['Tithes & Offerings', 'Building Fund', 'Missions', 'Youth Ministry', 'Benevolence'];
 
   const handleGive = async () => {
+    if (!amount || parseFloat(amount) <= 0) {
+      Alert.alert('Amount Required', 'Please enter a valid giving amount.');
+      return;
+    }
     setLoading(true);
     try {
+      const resp = await fetch('https://ldjynhvueuyjjjlkkyff.supabase.co/functions/v1/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(parseFloat(amount) * 100), currency: 'usd', metadata: { fund } }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.clientSecret) throw new Error(data.error || 'Payment setup failed.');
       await supabase.from('giving').insert({
+        member_id: MEMBER.id,
         amount: parseFloat(amount),
         fund,
         note,
         date: new Date().toISOString().split('T')[0],
         method: 'app',
       });
-    } catch (e) {}
-    setLoading(false);
-    setStep(3);
+      setLoading(false);
+      setStep(3);
+    } catch (e) {
+      setLoading(false);
+      Alert.alert('Payment Error', e.message || 'Unable to process. Please try again.');
+    }
   };
 
   if (step === 3) return (
@@ -241,13 +256,9 @@ function GiveScreen() {
       <Text style={{ fontSize: 60 }}>🙏</Text>
       <Text style={[s.headerTitle, { color: C.green, marginTop: 16 }]}>Thank You!</Text>
       <Text style={[s.cardBody, { textAlign: 'center', marginTop: 8, paddingHorizontal: 32 }]}>
-        Your gift of ${parseFloat(amount || 0).toFixed(2)} to {fund} has been received. God bless you!
+        Your gift of ${parseFloat(amount || 0).toFixed(2)} to {fund} has been received.
       </Text>
-      <View style={[{ backgroundColor: C.navy, borderRadius: 12, padding: 16, margin: 24 }]}>
-        <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13, marginBottom: 6, textAlign: 'center' }}>Luke 6:38</Text>
-        <Text style={{ color: C.white, fontSize: 13, fontStyle: 'italic', lineHeight: 20, textAlign: 'center' }}>"Give, and it will be given to you."</Text>
-      </View>
-      <TouchableOpacity style={[s.btn, { marginTop: 8 }]} onPress={() => { setStep(1); setAmount(''); setNote(''); }}>
+      <TouchableOpacity style={[s.btn, { marginTop: 32 }]} onPress={() => { setStep(1); setAmount(''); setNote(''); }}>
         <Text style={s.btnText}>Give Again</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -292,10 +303,6 @@ function GiveScreen() {
               value={note}
               onChangeText={setNote}
             />
-            <View style={[s.card, { backgroundColor: C.navy, marginTop: 16 }]}>
-              <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13, marginBottom: 6 }}>Luke 6:38</Text>
-              <Text style={{ color: C.white, fontSize: 14, fontStyle: 'italic', lineHeight: 22 }}>"Give, and it will be given to you. A good measure, pressed down, shaken together and running over, will be poured into your lap. For with the measure you use, it will be measured to you."</Text>
-            </View>
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
               onPress={() => setStep(2)}
@@ -365,15 +372,12 @@ function PrayerScreen() {
   const handleSubmit = async () => {
     if (!request.trim()) return;
     setSubmitting(true);
-    const currentUser = await supabase.auth.getUser();
-    const userEmail = currentUser?.data?.user?.email || null;
-    const { error: insertError } = await supabase.from('prayer_requests').insert({
+    await supabase.from('prayer_requests').insert({
       name: anon ? 'Anonymous' : (name || `${MEMBER.firstName} ${MEMBER.lastName}`),
       request,
       status: 'pending',
-      email: anon ? null : userEmail,
+      member_id: MEMBER.id,
     });
-    if (insertError) { console.log('Prayer insert error:', insertError); }
     setSubmitting(false);
     setSuccess(true);
     setRequest('');
@@ -474,7 +478,7 @@ function EventsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('events').select('*').order('event_date').limit(20);
+      const { data } = await supabase.from('events').select('*').gte('date', new Date().toISOString().split('T')[0]).order('date').limit(20);
       if (data?.length) setEvents(data);
       else setEvents([
         { id: '1', title: 'Sunday Worship Service', date: '2026-03-15', time: '10:30 AM', location: 'Main Sanctuary', description: 'Join us for praise, worship and the Word.' },
@@ -487,15 +491,6 @@ function EventsScreen() {
     };
     load();
   }, []);
-
-  const formatTime = (t) => {
-    if (!t) return '';
-    const [h, m] = t.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const regular = hour % 12 || 12;
-    return `${regular}:${m} ${ampm}`;
-  };
 
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -510,7 +505,7 @@ function EventsScreen() {
           keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => {
-            const d = new Date((item.event_date || item.date) + 'T12:00');
+            const d = new Date(item.date + 'T12:00');
             return (
               <View style={[s.card, s.row]}>
                 <View style={s.dateBadge}>
@@ -519,10 +514,9 @@ function EventsScreen() {
                 </View>
                 <View style={s.flex}>
                   <Text style={s.cardTitle}>{item.title}</Text>
-                  {(item.start_time || item.time) && <Text style={[s.cardBody, { color: C.teal }]}>{formatTime(item.start_time) || item.time}</Text>}
+                  {item.time && <Text style={[s.cardBody, { color: C.teal }]}>{item.time}</Text>}
                   {item.location && <Text style={s.cardBody}>📍 {item.location}</Text>}
                   {item.description && <Text style={[s.cardBody, { marginTop: 4 }]}>{item.description}</Text>}
-                  {item.recurring && <Text style={[s.cardBody, { color: C.gold, fontWeight: '700' }]}>🔁 Weekly</Text>}
                 </View>
               </View>
             );
@@ -533,57 +527,58 @@ function EventsScreen() {
   );
 }
 
-// ----- Profile Screen -----------------------------------------------
-function ProfileScreen({ onLogout, user }) {
-  const [prayers, setPrayers] = useState([]);
+// ─── Profile Screen ───────────────────────────────────────────────────────────
+function ProfileScreen({ onLogout }) {
+  const [giving, setGiving] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const load = async () => {
-      if (user) {
-        const { data: memberData } = await supabase.from('members').select('*').eq('email', user.email).single();
-        if (memberData) setProfile(memberData);
-        const { data } = await supabase.from('prayer_requests').select('*').eq('email', user.email).order('created_at', { ascending: false }).limit(10);
-        setPrayers(data || []);
-      }
+      const { data } = await supabase.from('giving').select('*').eq('member_id', MEMBER.id).order('date', { ascending: false }).limit(10);
+      setGiving(data || [
+        { id: '1', fund: 'Tithes & Offerings', amount: 250, date: '2026-03-09' },
+        { id: '2', fund: 'Building Fund', amount: 100, date: '2026-03-02' },
+        { id: '3', fund: 'Tithes & Offerings', amount: 250, date: '2026-02-23' },
+      ]);
       setLoading(false);
     };
     load();
   }, []);
 
+  const total = giving.reduce((sum, g) => sum + (parseFloat(g.amount) || 0), 0);
+
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={[s.header, { paddingBottom: 24 }]}>
         <View style={s.avatar}>
-          <Text style={s.avatarText}>{(profile?.first_name || user?.email || 'G')[0].toUpperCase()}</Text>
+          <Text style={s.avatarText}>{MEMBER.firstName[0]}{MEMBER.lastName[0]}</Text>
         </View>
-        <Text style={s.headerTitle}>{profile ? profile.first_name + ' ' + profile.last_name : user?.email}</Text>
-        <Text style={s.headerSub}>{profile?.role || 'Member'}</Text>
+        <Text style={s.headerTitle}>{MEMBER.firstName} {MEMBER.lastName}</Text>
+        <Text style={s.headerSub}>{MEMBER.role}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={s.card}>
-          <Row label="Email" value={profile?.email || user?.email} />
-          <Row label="Phone" value={profile?.phone || '—'} />
-          <Row label="Status" value={profile?.status || 'Member'} />
-          <Row label="Member Since" value={profile?.join_date ? new Date(profile.join_date + 'T12:00').getFullYear().toString() : '—'} />
+          <Row label="Email" value={MEMBER.email} />
+          <Row label="Phone" value={MEMBER.phone} />
+          <Row label="Status" value={MEMBER.status} />
+          <Row label="Member Since" value={new Date(MEMBER.joinDate + 'T12:00').getFullYear().toString()} />
         </View>
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>My Prayer Requests</Text>
-        {loading ? <ActivityIndicator color={C.teal} /> : prayers.length === 0 ? (
-          <View style={s.card}>
-            <Text style={[s.cardBody, { textAlign: 'center' }]}>No prayer requests yet.</Text>
-          </View>
-        ) : prayers.map(p => (
-          <View key={p.id} style={s.card}>
-            <View style={[s.row, { justifyContent: 'space-between', marginBottom: 4 }]}>
-              <Text style={s.cardTitle}>{new Date(p.created_at).toLocaleDateString()}</Text>
-              <View style={[s.badge, { backgroundColor: p.status === 'responded' ? C.green : C.gold }]}>
-                <Text style={s.badgeText}>{p.status}</Text>
-              </View>
+
+        <Text style={[s.sectionTitle, { marginTop: 20 }]}>Giving History</Text>
+        <View style={[s.card, { backgroundColor: C.navy, marginBottom: 12 }]}>
+          <Text style={[s.cardBody, { color: C.tealL }]}>Year-to-Date Total</Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: C.white }}>${total.toFixed(2)}</Text>
+        </View>
+        {loading ? <ActivityIndicator color={C.teal} /> : giving.map(g => (
+          <View key={g.id} style={[s.card, s.row, { justifyContent: 'space-between' }]}>
+            <View>
+              <Text style={s.cardTitle}>{g.fund}</Text>
+              <Text style={s.cardBody}>{g.date}</Text>
             </View>
-            <Text style={s.cardBody}>{p.request}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: C.navy }}>${parseFloat(g.amount).toFixed(2)}</Text>
           </View>
         ))}
+
         <TouchableOpacity style={[s.btn, { backgroundColor: '#c62828', marginTop: 24 }]} onPress={onLogout}>
           <Text style={s.btnText}>Sign Out</Text>
         </TouchableOpacity>
@@ -619,9 +614,8 @@ function BottomNav({ active, onNav }) {
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [screen, setScreen] = useState('home');
-  const [user, setUser] = useState(null);
 
-  if (!loggedIn) return <LoginScreen onLogin={(u) => { setLoggedIn(true); setUser(u); }} />;
+  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)} />;
 
   const renderScreen = () => {
     switch (screen) {
@@ -630,7 +624,7 @@ export default function App() {
       case 'give': return <GiveScreen />;
       case 'prayer': return <PrayerScreen />;
       case 'events': return <EventsScreen />;
-      case 'profile': return <ProfileScreen onLogout={() => { setLoggedIn(false); setUser(null); }} user={user} />;
+      case 'profile': return <ProfileScreen onLogout={() => setLoggedIn(false)} />;
       default: return <HomeScreen />;
     }
   };
@@ -680,10 +674,6 @@ const s = StyleSheet.create({
   quickBtnText: { color: C.white, fontWeight: '700', fontSize: 16 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.teal },
   radioSelected: { backgroundColor: C.teal },
-  freqBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 2, borderColor: C.lightGray, backgroundColor: C.white, marginBottom: 8 },
-  freqBtnActive: { borderColor: C.teal, backgroundColor: C.teal },
-  freqBtnText: { color: C.gray, fontWeight: '600', fontSize: 14 },
-  freqBtnTextActive: { color: C.white },
 
   // Prayer
   tabs: { flexDirection: 'row', backgroundColor: C.white, borderBottomWidth: 1, borderBottomColor: C.lightGray },
