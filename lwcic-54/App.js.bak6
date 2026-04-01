@@ -228,17 +228,6 @@ function GiveScreen() {
     }
     setLoading(true);
     try {
-      const donationUrl = 'https://donate.stripe.com/8x28wO6mWcZP0t34Tj87K00?amount=' + Math.round(parseFloat(amount) * 100);
-      await Linking.openURL(donationUrl);
-      setLoading(false);
-      setStep(3);
-      return;
-    } catch(e) {
-      Alert.alert('Error', 'Unable to open donation page. Please try again.');
-      setLoading(false);
-      return;
-    }
-    try {
       const resp = await fetch('https://ldjynhvueuyjjjlkkyff.supabase.co/functions/v1/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
