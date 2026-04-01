@@ -634,8 +634,6 @@ function BibleScreen() {
   const [loading, setLoading] = React.useState(false);
   const [readingTab, setReadingTab] = React.useState('ot');
   const [salvationSaved, setSalvationSaved] = React.useState(false);
-  const [planStartDate, setPlanStartDate] = React.useState(null);
-  const [planLoading, setPlanLoading] = React.useState(true);
 
   const SUPABASE_URL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
@@ -645,51 +643,12 @@ function BibleScreen() {
     if (tab === 'devotional') fetchDevotional();
   }, [tab]);
 
-  React.useEffect(() => {
-    fetchPlanStartDate();
-  }, []);
-
-  const fetchPlanStartDate = async () => {
-    try {
-      const res = await fetch(
-        SUPABASE_URL + '/rest/v1/members?id=eq.' + MEMBER.id + '&select=bible_plan_start_date',
-        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
-      );
-      const data = await res.json();
-      if (data && data.length > 0 && data[0].bible_plan_start_date) {
-        setPlanStartDate(data[0].bible_plan_start_date);
-      }
-    } catch(e) {}
-    setPlanLoading(false);
-  };
-
-  const startPlan = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      await fetch(SUPABASE_URL + '/rest/v1/members?id=eq.' + MEMBER.id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
-        body: JSON.stringify({ bible_plan_start_date: today })
-      });
-      setPlanStartDate(today);
-      fetchTodayReading();
-    } catch(e) {}
-  };
-
-  const getPlanDay = () => {
-    if (!planStartDate) return 1;
-    const start = new Date(planStartDate);
-    const today = new Date();
-    const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-    return Math.min(diff + 1, 365);
-  };
-
   const fetchTodayReading = async () => {
     setLoading(true);
     try {
-      const dayNum = getPlanDay();
+      const today = new Date().toISOString().split('T')[0];
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/Daily%20Readings?Day=eq.' + dayNum + '&limit=1',
+        SUPABASE_URL + '/rest/v1/Daily%20Readings?Date=eq.' + today + '&limit=1',
         { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
       );
       const data = await res.json();
