@@ -597,10 +597,267 @@ const NAV = [
   { key: 'home', label: 'Home', icon: '🏠' },
   { key: 'watch', label: 'Watch', icon: '▶️' },
   { key: 'give', label: 'Give', icon: '🙏' },
-  { key: 'prayer', label: 'Prayer', icon: '✝️' },
+  { key: 'bible', label: 'Bible', icon: '📖' },
   { key: 'events', label: 'Events', icon: '📅' },
   { key: 'profile', label: 'Profile', icon: '👤' },
 ];
+
+const ROMANS_ROAD = [
+  { step:1, title:"All Have Sinned", reference:"Romans 3:23", text:"For all have sinned, and come short of the glory of God.", reflection:"We all fall short of God's perfect standard. Sin separates us from God.", emoji:"😔", color:"#c62828" },
+  { step:2, title:"The Wages of Sin", reference:"Romans 6:23", text:"For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord.", reflection:"Sin has a price — death. But God offers a free gift: eternal life through Jesus.", emoji:"⚖️", color:"#6a1b9a" },
+  { step:3, title:"God's Love For Us", reference:"Romans 5:8", text:"But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us.", reflection:"God loved us at our worst and sent Jesus to die for us.", emoji:"❤️", color:"#c62828" },
+  { step:4, title:"Confess & Believe", reference:"Romans 10:9", text:"That if thou shalt confess with thy mouth the Lord Jesus, and shalt believe in thine heart that God hath raised him from the dead, thou shalt be saved.", reflection:"Salvation requires confessing Jesus as Lord and believing in the resurrection.", emoji:"🙌", color:"#1565c0" },
+  { step:5, title:"Call Upon His Name", reference:"Romans 10:13", text:"For whosoever shall call upon the name of the Lord shall be saved.", reflection:"This promise is for everyone. Anyone who calls on Jesus will be saved.", emoji:"📢", color:"#2e7d32" },
+  { step:6, title:"Faith Comes By Hearing", reference:"Romans 10:17", text:"So then faith cometh by hearing, and hearing by the word of God.", reflection:"Your faith grows as you spend time in God's Word.", emoji:"👂", color:"#e65100" },
+  { step:7, title:"No Condemnation", reference:"Romans 8:1", text:"There is therefore now no condemnation to them which are in Christ Jesus.", reflection:"Once you accept Christ, you are free from condemnation forever.", emoji:"🕊️", color:"#00695c" },
+  { step:8, title:"Nothing Can Separate Us", reference:"Romans 8:38-39", text:"For I am persuaded, that neither death, nor life, nor angels, nor principalities, nor powers, nor things present, nor things to come, shall be able to separate us from the love of God, which is in Christ Jesus our Lord.", reflection:"Nothing in all creation can separate you from God's love.", emoji:"🛡️", color:"#1a237e" },
+  { step:9, title:"The Salvation Prayer", reference:"Romans 10:9-10", text:"Lord Jesus, I confess that I am a sinner. I believe that You died for my sins and rose from the dead. I invite You into my heart as my Lord and Savior. Amen.", reflection:"If you prayed this prayer and meant it — welcome to the family of God!", emoji:"🙏", color:"#880E4F", isSalvationPrayer:true },
+];
+
+
+function BibleScreen() {
+  const [tab, setTab] = React.useState('reading');
+  const [romansStep, setRomansStep] = React.useState(0);
+  const [romansComplete, setRomansComplete] = React.useState(false);
+  const [todayReading, setTodayReading] = React.useState(null);
+  const [devotional, setDevotional] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [readingTab, setReadingTab] = React.useState('ot');
+  const [salvationSaved, setSalvationSaved] = React.useState(false);
+
+  const SUPABASE_URL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
+
+  React.useEffect(() => {
+    if (tab === 'reading') fetchTodayReading();
+    if (tab === 'devotional') fetchDevotional();
+  }, [tab]);
+
+  const fetchTodayReading = async () => {
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await fetch(
+        SUPABASE_URL + '/rest/v1/Daily%20Readings?Date=eq.' + today + '&limit=1',
+        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setTodayReading(data[0]);
+      } else {
+        const res2 = await fetch(
+          SUPABASE_URL + '/rest/v1/Daily%20Readings?order=id&limit=1',
+          { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+        );
+        const data2 = await res2.json();
+        if (data2 && data2.length > 0) setTodayReading(data2[0]);
+      }
+    } catch(e) {}
+    setLoading(false);
+  };
+
+  const fetchDevotional = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        SUPABASE_URL + '/rest/v1/devotionals?order=week_start.desc&limit=1',
+        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+      );
+      const data = await res.json();
+      if (data && data.length > 0) setDevotional(data[0]);
+    } catch(e) {}
+    setLoading(false);
+  };
+
+  const handleSalvationDecision = async () => {
+    try {
+      await fetch(SUPABASE_URL + '/rest/v1/salvations_decisions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ member_id: MEMBER.id, decision_date: new Date().toISOString().split('T')[0], notes: 'Accepted Christ through Walk Through Romans in the LWCIC app' })
+      });
+      setSalvationSaved(true);
+    } catch(e) {}
+  };
+
+  const cur = ROMANS_ROAD[romansStep];
+
+  return (
+    <SafeAreaView style={{flex:1, backgroundColor: C.bg}}>
+      <View style={{backgroundColor: C.navy, paddingHorizontal:16, paddingTop:16, paddingBottom:0}}>
+        <Text style={{fontSize:20, fontWeight:'800', color:C.white, marginBottom:4}}>📖 Bible</Text>
+        <Text style={{fontSize:12, color:'rgba(255,255,255,0.5)', marginBottom:12}}>Daily Reading · Romans Road · Devotional</Text>
+        <View style={{flexDirection:'row', backgroundColor:'rgba(255,255,255,0.1)', borderRadius:10, padding:3, marginBottom:4}}>
+          {[['reading','Today'],['romans','Romans'],['devotional','Devotional']].map(([key,label]) => (
+            <TouchableOpacity key={key} onPress={()=>setTab(key)} style={{flex:1, paddingVertical:8, borderRadius:8, backgroundColor:tab===key?'rgba(255,255,255,0.2)':'transparent', alignItems:'center'}}>
+              <Text style={{fontSize:11, fontWeight:'700', color:tab===key?C.white:'rgba(255,255,255,0.4)'}}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <ScrollView style={{flex:1}} contentContainerStyle={{padding:16, paddingBottom:32}}>
+
+        {/* DAILY READING */}
+        {tab === 'reading' && (
+          loading ? <ActivityIndicator color={C.teal} style={{marginTop:40}}/> :
+          todayReading ? (
+            <View>
+              <View style={{backgroundColor:C.white, borderRadius:16, padding:16, marginBottom:12, elevation:2}}>
+                <Text style={{fontSize:11, color:C.teal, fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginBottom:4}}>
+                  {new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
+                </Text>
+                <Text style={{fontSize:17, fontWeight:'700', color:C.navy}}>Daily Scripture Reading</Text>
+                <Text style={{fontSize:12, color:C.gray, marginTop:2}}>OT · NT · Psalms · Proverbs</Text>
+              </View>
+              <View style={{flexDirection:'row', gap:6, marginBottom:12}}>
+                {[['ot','OT'],['nt','NT'],['psalm','Psalm'],['proverb','Prov']].map(([key,label]) => (
+                  <TouchableOpacity key={key} onPress={()=>setReadingTab(key)} style={{flex:1, paddingVertical:8, borderRadius:10, borderWidth:1.5, borderColor:readingTab===key?C.teal:C.lightGray, backgroundColor:readingTab===key?C.teal+'20':C.white, alignItems:'center'}}>
+                    <Text style={{fontSize:10, fontWeight:'700', color:readingTab===key?C.teal:C.gray}}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {readingTab==='ot' && (
+                <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
+                  <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Old Testament</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.ot_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.ot_text}"</Text>
+                  <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
+                </View>
+              )}
+              {readingTab==='nt' && (
+                <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
+                  <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>New Testament</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.nt_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.nt_text}"</Text>
+                  <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
+                </View>
+              )}
+              {readingTab==='psalm' && (
+                <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
+                  <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Psalm</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.psalm_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.psalm_text}"</Text>
+                  <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
+                </View>
+              )}
+              {readingTab==='proverb' && (
+                <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
+                  <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Proverbs</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.proverbs_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.proverbs_text}"</Text>
+                  <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={{alignItems:'center', paddingTop:60}}>
+              <Text style={{fontSize:48, marginBottom:12}}>📖</Text>
+              <Text style={{fontSize:16, fontWeight:'700', color:C.navy}}>No Reading for Today</Text>
+            </View>
+          )
+        )}
+
+        {/* WALK THROUGH ROMANS */}
+        {tab === 'romans' && !romansComplete && (
+          <View>
+            <View style={{backgroundColor:C.white, borderRadius:14, padding:14, marginBottom:12, elevation:2}}>
+              <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:8}}>
+                <Text style={{fontSize:12, fontWeight:'700', color:C.navy}}>Step {romansStep+1} of {ROMANS_ROAD.length}</Text>
+                <Text style={{fontSize:12, color:C.teal, fontWeight:'700'}}>{Math.round(((romansStep+1)/ROMANS_ROAD.length)*100)}%</Text>
+              </View>
+              <View style={{height:6, backgroundColor:C.lightGray, borderRadius:3, overflow:'hidden'}}>
+                <View style={{height:6, width:(((romansStep+1)/ROMANS_ROAD.length)*100)+'%', backgroundColor:C.teal, borderRadius:3}}/>
+              </View>
+            </View>
+            <View style={{backgroundColor:C.white, borderRadius:20, overflow:'hidden', marginBottom:12, elevation:3}}>
+              <View style={{backgroundColor:cur.color, padding:24, alignItems:'center'}}>
+                <Text style={{fontSize:48, marginBottom:8}}>{cur.emoji}</Text>
+                <Text style={{fontSize:20, fontWeight:'800', color:'#fff', marginBottom:4, textAlign:'center'}}>{cur.title}</Text>
+                <Text style={{fontSize:13, color:'rgba(255,255,255,0.8)', fontWeight:'600'}}>{cur.reference}</Text>
+              </View>
+              <View style={{padding:18}}>
+                <View style={{borderLeftWidth:4, borderLeftColor:cur.color, paddingLeft:14, marginBottom:14}}>
+                  <Text style={{fontSize:14, color:C.navy, lineHeight:24, fontStyle:'italic'}}>"{cur.text}"</Text>
+                  <Text style={{fontSize:11, color:C.gray, fontWeight:'700', marginTop:8}}>— {cur.reference} (KJV)</Text>
+                </View>
+                <Text style={{fontSize:13, color:C.darkGray, lineHeight:22}}>{cur.reflection}</Text>
+              </View>
+            </View>
+            {cur.isSalvationPrayer && !salvationSaved && (
+              <TouchableOpacity onPress={handleSalvationDecision} style={{backgroundColor:'#880E4F', borderRadius:16, padding:16, alignItems:'center', marginBottom:10}}>
+                <Text style={{color:C.white, fontSize:15, fontWeight:'700'}}>🙏 I Prayed This Prayer Today</Text>
+              </TouchableOpacity>
+            )}
+            {cur.isSalvationPrayer && salvationSaved && (
+              <View style={{backgroundColor:'#e8f5e9', borderRadius:14, padding:14, marginBottom:10, alignItems:'center'}}>
+                <Text style={{fontSize:22, marginBottom:4}}>🎉</Text>
+                <Text style={{fontSize:14, fontWeight:'700', color:'#2e7d32'}}>Welcome to God's Family!</Text>
+                <Text style={{fontSize:12, color:C.darkGray, marginTop:4, textAlign:'center'}}>Your decision has been recorded. Pastor Baldwin will be in touch.</Text>
+              </View>
+            )}
+            <View style={{flexDirection:'row', gap:10}}>
+              {romansStep > 0 && (
+                <TouchableOpacity onPress={()=>setRomansStep(s=>s-1)} style={{flex:1, borderWidth:1.5, borderColor:C.lightGray, borderRadius:16, padding:14, alignItems:'center'}}>
+                  <Text style={{fontSize:14, fontWeight:'600', color:C.darkGray}}>Back</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={()=>{ if(romansStep<ROMANS_ROAD.length-1) setRomansStep(s=>s+1); else setRomansComplete(true); }} style={{flex:2, backgroundColor:C.teal, borderRadius:16, padding:14, alignItems:'center'}}>
+                <Text style={{color:C.white, fontSize:14, fontWeight:'700'}}>{romansStep<ROMANS_ROAD.length-1?'Next Step':'Complete'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {tab === 'romans' && romansComplete && (
+          <View style={{alignItems:'center', paddingTop:20}}>
+            <View style={{width:100, height:100, borderRadius:50, backgroundColor:C.teal, alignItems:'center', justifyContent:'center', marginBottom:20}}>
+              <Text style={{fontSize:44}}>✝️</Text>
+            </View>
+            <Text style={{fontSize:24, fontWeight:'800', color:C.navy, marginBottom:8, textAlign:'center'}}>Romans Road Complete!</Text>
+            <Text style={{fontSize:15, color:C.darkGray, lineHeight:24, textAlign:'center', marginBottom:20}}>You have walked through the path to salvation. Share this journey with someone you love.</Text>
+            <View style={{backgroundColor:C.navy, borderRadius:18, padding:18, marginBottom:20, width:'100%'}}>
+              <Text style={{fontSize:14, color:C.white, fontStyle:'italic', lineHeight:24, textAlign:'center'}}>"For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."</Text>
+              <Text style={{fontSize:12, color:C.teal, fontWeight:'700', marginTop:10, textAlign:'center'}}>— John 3:16</Text>
+            </View>
+            <TouchableOpacity onPress={()=>{setRomansStep(0);setRomansComplete(false);setSalvationSaved(false);}} style={{width:'100%', borderWidth:1.5, borderColor:C.lightGray, borderRadius:16, padding:14, alignItems:'center', backgroundColor:C.white}}>
+              <Text style={{fontSize:14, fontWeight:'700', color:C.navy}}>Start Over</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* DEVOTIONAL */}
+        {tab === 'devotional' && (
+          loading ? <ActivityIndicator color={C.teal} style={{marginTop:40}}/> :
+          devotional ? (
+            <View>
+              <View style={{backgroundColor:C.navy, borderRadius:20, padding:20, marginBottom:12, elevation:4}}>
+                <Text style={{fontSize:11, color:C.teal, fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginBottom:6}}>
+                  Week of {new Date(devotional.week_start).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}
+                </Text>
+                <Text style={{fontSize:20, fontWeight:'800', color:C.white, marginBottom:6, lineHeight:28}}>{devotional.title}</Text>
+                <Text style={{fontSize:13, color:'rgba(255,255,255,0.6)', fontWeight:'600'}}>{devotional.scripture}</Text>
+              </View>
+              <View style={{backgroundColor:C.white, borderRadius:18, padding:18, elevation:2}}>
+                <Text style={{fontSize:15, color:C.darkGray, lineHeight:26}}>{devotional.body}</Text>
+                {devotional.author && (
+                  <Text style={{fontSize:12, color:C.gray, fontWeight:'700', marginTop:14, paddingTop:12, borderTopWidth:1, borderTopColor:C.lightGray}}>— {devotional.author}</Text>
+                )}
+              </View>
+            </View>
+          ) : (
+            <View style={{alignItems:'center', paddingTop:60}}>
+              <Text style={{fontSize:48, marginBottom:12}}>🌅</Text>
+              <Text style={{fontSize:16, fontWeight:'700', color:C.navy}}>No Devotional This Week</Text>
+              <Text style={{fontSize:13, color:C.gray, marginTop:8, textAlign:'center'}}>Check back soon as Pastor adds the weekly devotional.</Text>
+            </View>
+          )
+        )}
+
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
 
 function BottomNav({ active, onNav }) {
   return (
@@ -628,7 +885,7 @@ export default function App() {
       case 'home': return <HomeScreen />;
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen />;
-      case 'prayer': return <PrayerScreen />;
+        case 'bible': return <BibleScreen />;
       case 'events': return <EventsScreen />;
       case 'profile': return <ProfileScreen onLogout={() => { setLoggedIn(false); setUser(null); }} user={user} />;
       default: return <HomeScreen />;
