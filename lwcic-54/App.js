@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform, FlatList
 } from 'react-native';
+import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -55,6 +56,7 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
+    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic">
     <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
         <Text style={s.logoText}>Living Water</Text>
@@ -213,6 +215,7 @@ function WatchScreen() {
 
 // ─── Give Screen ──────────────────────────────────────────────────────────────
 function GiveScreen() {
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
   const [fund, setFund] = useState('Tithes & Offerings');
@@ -228,17 +231,6 @@ function GiveScreen() {
     }
     setLoading(true);
     try {
-      const donationUrl = 'https://donate.stripe.com/8x28wO6mWcZP0t34Tj87K00?amount=' + Math.round(parseFloat(amount) * 100);
-      await Linking.openURL(donationUrl);
-      setLoading(false);
-      setStep(3);
-      return;
-    } catch(e) {
-      Alert.alert('Error', 'Unable to open donation page. Please try again.');
-      setLoading(false);
-      return;
-    }
-    try {
       const resp = await fetch('https://ldjynhvueuyjjjlkkyff.supabase.co/functions/v1/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -246,6 +238,23 @@ function GiveScreen() {
       });
       const data = await resp.json();
       if (!resp.ok || !data.clientSecret) throw new Error(data.error || 'Payment setup failed.');
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Living Water Church In Christ',
+        paymentIntentClientSecret: data.clientSecret,
+        applePay: { merchantCountryCode: 'US' },
+        googlePay: { merchantCountryCode: 'US', testEnv: false },
+        style: 'automatic',
+        returnURL: 'lwcic://stripe-redirect',
+      });
+      if (initError) throw new Error(initError.message);
+
+      const { error: payError } = await presentPaymentSheet();
+      if (payError) {
+        if (payError.code === 'Canceled') { setLoading(false); return; }
+        throw new Error(payError.message);
+      }
+
       await supabase.from('giving').insert({
         member_id: MEMBER.id,
         amount: parseFloat(amount),
@@ -341,6 +350,7 @@ function GiveScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  </StripeProvider>
   );
 }
 
@@ -603,7 +613,6 @@ const NAV = [
   { key: 'home', label: 'Home', icon: '🏠' },
   { key: 'watch', label: 'Watch', icon: '▶️' },
   { key: 'give', label: 'Give', icon: '🙏' },
-  { key: 'prayer', label: 'Prayer', icon: '✝️' },
   { key: 'events', label: 'Events', icon: '📅' },
   { key: 'bible', label: 'Bible', icon: '📖' },
   { key: 'profile', label: 'Profile', icon: '👤' },
@@ -645,8 +654,6 @@ function BibleScreen() {
   const [loading, setLoading] = React.useState(false);
   const [readingTab, setReadingTab] = React.useState('ot');
   const [salvationSaved, setSalvationSaved] = React.useState(false);
-  const [planStartDate, setPlanStartDate] = React.useState(null);
-  const [planLoading, setPlanLoading] = React.useState(true);
 
   const SUPABASE_URL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
@@ -656,51 +663,12 @@ function BibleScreen() {
     if (tab === 'devotional') fetchDevotional();
   }, [tab]);
 
-  React.useEffect(() => {
-    fetchPlanStartDate();
-  }, []);
-
-  const fetchPlanStartDate = async () => {
-    try {
-      const res = await fetch(
-        SUPABASE_URL + '/rest/v1/members?id=eq.' + MEMBER.id + '&select=bible_plan_start_date',
-        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
-      );
-      const data = await res.json();
-      if (data && data.length > 0 && data[0].bible_plan_start_date) {
-        setPlanStartDate(data[0].bible_plan_start_date);
-      }
-    } catch(e) {}
-    setPlanLoading(false);
-  };
-
-  const startPlan = async () => {
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      await fetch(SUPABASE_URL + '/rest/v1/members?id=eq.' + MEMBER.id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
-        body: JSON.stringify({ bible_plan_start_date: today })
-      });
-      setPlanStartDate(today);
-      fetchTodayReading();
-    } catch(e) {}
-  };
-
-  const getPlanDay = () => {
-    if (!planStartDate) return 1;
-    const start = new Date(planStartDate);
-    const today = new Date();
-    const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-    return Math.min(diff + 1, 365);
-  };
-
   const fetchTodayReading = async () => {
     setLoading(true);
     try {
-      const dayNum = getPlanDay();
+      const today = new Date().toISOString().split('T')[0];
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/Daily%20Readings?Day=eq.' + dayNum + '&limit=1',
+        SUPABASE_URL + '/rest/v1/Daily%20Readings?Date=eq.' + today + '&limit=1',
         { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
       );
       const data = await res.json();
@@ -922,6 +890,8 @@ function BibleScreen() {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
+const STRIPE_PK = 'pk_live_51R3NIERwMrMolAzxBvSS9GicBxRlHqv59o7lDNm0O3N6jqUEhDKl4fFXxo5ybwVKqQRgZjkR2yQvbfHBnKaBUkQn00RlVHxbYP';
+
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [screen, setScreen] = useState('home');
@@ -933,7 +903,7 @@ export default function App() {
       case 'home': return <HomeScreen />;
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen />;
-      case 'prayer': return <PrayerScreen />;
+      case 'prayer': return <BibleScreen />;
       case 'events': return <EventsScreen />;
       case 'bible': return <BibleScreen />;
       case 'profile': return <ProfileScreen onLogout={() => setLoggedIn(false)} />;
