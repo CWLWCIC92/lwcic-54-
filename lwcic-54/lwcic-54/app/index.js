@@ -1,5 +1,3 @@
-import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
-const STRIPE_PK = 'pk_live_51SNKrVD1ej3IzU6u3oiV7Nm07JcwpCBm2RjiRSZX7f5MvJSZx51csDqI5RTRDfPDsxzFLz70Uh4JcUwea21cyqRL00hXwBsJ63';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
@@ -228,7 +226,6 @@ function WatchScreen() {
 
 // ─── Give Screen ──────────────────────────────────────────────────────────────
 function GiveScreen() {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
   const [fund, setFund] = useState('Tithe');
@@ -238,50 +235,18 @@ function GiveScreen() {
   const funds = ['Tithe', 'Offering', 'Building Fund', 'Missions', 'Love Offering'];
 
   const handleGive = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Amount Required', 'Please enter a valid giving amount.');
-      return;
-    }
     setLoading(true);
     try {
-      const resp = await fetch('https://ldjynhvueuyjjjlkkyff.supabase.co/functions/v1/create-payment-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(amount), currency: 'usd', metadata: { fund } }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data.clientSecret) throw new Error(data.error || 'Payment setup failed.');
-
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: 'Living Water Church In Christ',
-        paymentIntentClientSecret: data.clientSecret,
-        applePay: { merchantCountryCode: 'US' },
-        googlePay: { merchantCountryCode: 'US', testEnv: false },
-        style: 'automatic',
-        returnURL: 'lwcic://stripe-redirect',
-      });
-      if (initError) throw new Error(initError.message);
-
-      const { error: payError } = await presentPaymentSheet();
-      if (payError) {
-        if (payError.code === 'Canceled') { setLoading(false); return; }
-        throw new Error(payError.message);
-      }
-
       await supabase.from('giving').insert({
-        member_id: MEMBER.id,
         amount: parseFloat(amount),
         fund,
         note,
         date: new Date().toISOString().split('T')[0],
         method: 'app',
       });
-      setLoading(false);
-      setStep(3);
-    } catch (e) {
-      setLoading(false);
-      Alert.alert('Payment Error', e.message || 'Unable to process. Please try again.');
-    }
+    } catch (e) {}
+    setLoading(false);
+    setStep(3);
   };
 
   if (step === 3) return (
@@ -291,13 +256,11 @@ function GiveScreen() {
       <Text style={[s.cardBody, { textAlign: 'center', marginTop: 8, paddingHorizontal: 32 }]}>
         Your gift of ${parseFloat(amount || 0).toFixed(2)} to {fund} has been received. God bless you!
       </Text>
-      <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, margin: 24 }}>
+      <View style={[{ backgroundColor: C.navy, borderRadius: 12, padding: 16, margin: 24 }]}>
         <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13, marginBottom: 6, textAlign: 'center' }}>Luke 6:38</Text>
-        <Text style={{ color: C.white, fontSize: 13, fontStyle: 'italic', textAlign: 'center', lineHeight: 20 }}>
-          "Give, and it shall be given unto you; good measure, pressed down, and shaken together, and running over."
-        </Text>
+        <Text style={{ color: C.white, fontSize: 13, fontStyle: 'italic', lineHeight: 20, textAlign: 'center' }}>"Give, and it will be given to you."</Text>
       </View>
-      <TouchableOpacity style={[s.btn, { marginTop: 8, paddingHorizontal: 40 }]} onPress={() => { setStep(1); setAmount(''); setNote(''); }}>
+      <TouchableOpacity style={[s.btn, { marginTop: 8 }]} onPress={() => { setStep(1); setAmount(''); setNote(''); }}>
         <Text style={s.btnText}>Give Again</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -342,6 +305,10 @@ function GiveScreen() {
               value={note}
               onChangeText={setNote}
             />
+            <View style={[s.card, { backgroundColor: C.navy, marginTop: 16 }]}>
+              <Text style={{ color: C.gold, fontWeight: '800', fontSize: 13, marginBottom: 6 }}>Luke 6:38</Text>
+              <Text style={{ color: C.white, fontSize: 14, fontStyle: 'italic', lineHeight: 22 }}>"Give, and it will be given to you. A good measure, pressed down, shaken together and running over, will be poured into your lap. For with the measure you use, it will be measured to you."</Text>
+            </View>
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
               onPress={() => setStep(2)}
@@ -350,12 +317,14 @@ function GiveScreen() {
               <Text style={s.btnText}>Review Gift</Text>
             </TouchableOpacity>
           </>}
+
           {step === 2 && <>
             <Text style={s.sectionTitle}>Review Your Gift</Text>
             <View style={s.card}>
               <Row label="Fund" value={fund} />
-              <Row label="Amount" value={"$" + parseFloat(amount).toFixed(2)} />
+              <Row label="Amount" value={`$${parseFloat(amount).toFixed(2)}`} />
               {note ? <Row label="Note" value={note} /> : null}
+              <Row label="Name" value={`${MEMBER.firstName} ${MEMBER.lastName}`} />
             </View>
             <TouchableOpacity style={[s.btn, { marginTop: 24 }]} onPress={handleGive} disabled={loading}>
               {loading ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Confirm & Give</Text>}
@@ -370,6 +339,16 @@ function GiveScreen() {
   );
 }
 
+function Row({ label, value }) {
+  return (
+    <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.lightGray }]}>
+      <Text style={[s.cardBody, { fontWeight: '600' }]}>{label}</Text>
+      <Text style={s.cardBody}>{value}</Text>
+    </View>
+  );
+}
+
+// ─── Prayer Screen ────────────────────────────────────────────────────────────
 function PrayerScreen() {
   const isPastor = MEMBER.role === 'Pastor' || MEMBER.role === 'Co-Pastor';
   const [tab, setTab] = useState('submit');
@@ -564,15 +543,6 @@ function EventsScreen() {
         />
       )}
     </SafeAreaView>
-  );
-}
-
-function Row({ label, value }) {
-  return (
-    <View style={[s.row, { justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.lightGray }]}>
-      <Text style={[s.cardBody, { fontWeight: '600' }]}>{label}</Text>
-      <Text style={s.cardBody}>{value}</Text>
-    </View>
   );
 }
 
@@ -1029,12 +999,10 @@ export default function App() {
   };
 
   return (
-    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic">
-      <View style={s.flex}>
-        <View style={s.flex}>{renderScreen()}</View>
-        <BottomNav active={screen} onNav={setScreen} />
-      </View>
-    </StripeProvider>
+    <View style={s.flex}>
+      <View style={s.flex}>{renderScreen()}</View>
+      <BottomNav active={screen} onNav={setScreen} />
+    </View>
   );
 }
 
