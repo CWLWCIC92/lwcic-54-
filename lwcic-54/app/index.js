@@ -308,8 +308,8 @@ function GiveScreen() {
       <View style={s.header}>
         <Text style={s.headerTitle}>Give</Text>
       </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex} keyboardVerticalOffset={80}>
+        <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
           {step === 1 && <>
             <Text style={s.sectionTitle}>Select Fund</Text>
             {funds.map(f => (
