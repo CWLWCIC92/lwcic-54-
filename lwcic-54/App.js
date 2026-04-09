@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform, FlatList
+  KeyboardAvoidingView, Platform, FlatList, Linking
 } from 'react-native';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import { createClient } from '@supabase/supabase-js';
@@ -11,6 +11,8 @@ const supabase = createClient(
   'https://ldjynhvueuyjjjlkkyff.supabase.co',
   'sb_publishable_7nKlUMfqli0LKc0884ENuQ_4zlcFb7Q'
 );
+
+const STRIPE_PK = 'pk_live_51R3NIERwMrMolAzxBvSS9GicBxRlHqv59o7lDNm0O3N6jqUEhDKl4fFXxo5ybwVKqQRgZjkR2yQvbfHBnKaBUkQn00RlVHxbYP';
 
 const C = {
   navy: '#0d2d5e',
@@ -23,6 +25,7 @@ const C = {
   gray: '#888',
   lightGray: '#e0e0e0',
   dark: '#222',
+  darkGray: '#555',
 };
 
 const MEMBER = {
@@ -56,7 +59,6 @@ function LoginScreen({ onLogin }) {
   };
 
   return (
-    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic">
     <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
         <Text style={s.logoText}>Living Water</Text>
@@ -186,25 +188,35 @@ function WatchScreen() {
           keyExtractor={i => String(i.id)}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={s.card} onPress={() => setPlaying(playing === item.id ? null : item.id)}>
+            <TouchableOpacity
+              style={s.card}
+              onPress={() => {
+                if (item.video_url) {
+                  Alert.alert(
+                    'Opening Facebook',
+                    'This sermon is hosted on Facebook Live. The Facebook app or a Facebook account may be required to watch.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Watch Now', onPress: () => Linking.openURL(item.video_url) },
+                    ]
+                  );
+                } else {
+                  Alert.alert('Coming Soon', 'Video not yet available. Check back after Sunday service!');
+                }
+              }}
+            >
               <View style={s.row}>
-                <View style={[s.playBtn, { backgroundColor: playing === item.id ? C.teal : C.navy }]}>
-                  <Text style={{ color: C.white, fontSize: 18 }}>{playing === item.id ? '⏸' : '▶'}</Text>
+                <View style={[s.playBtn, { backgroundColor: item.video_url ? C.teal : C.navy }]}>
+                  <Text style={{ color: C.white, fontSize: 18 }}>▶</Text>
                 </View>
                 <View style={s.flex}>
                   <Text style={s.cardTitle}>{item.title}</Text>
                   <Text style={s.cardBody}>{item.speaker} • {item.date}</Text>
                   {item.series && <Text style={[s.cardBody, { color: C.teal }]}>{item.series}</Text>}
+                  {!item.video_url && <Text style={[s.cardBody, { color: C.gold, fontSize: 12, marginTop: 2 }]}>⏳ Video coming soon</Text>}
+                  {item.video_url && <Text style={[s.cardBody, { color: '#1877F2', fontSize: 12, marginTop: 2 }]}>📘 Watch on Facebook</Text>}
                 </View>
               </View>
-              {playing === item.id && (
-                <View style={s.playerBar}>
-                  <View style={s.playerTrack}>
-                    <View style={[s.playerProgress, { width: '35%' }]} />
-                  </View>
-                  <Text style={s.playerTime}>12:42 / 38:15</Text>
-                </View>
-              )}
             </TouchableOpacity>
           )}
         />
@@ -350,7 +362,6 @@ function GiveScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  </StripeProvider>
   );
 }
 
@@ -360,135 +371,6 @@ function Row({ label, value }) {
       <Text style={[s.cardBody, { fontWeight: '600' }]}>{label}</Text>
       <Text style={s.cardBody}>{value}</Text>
     </View>
-  );
-}
-
-// ─── Prayer Screen ────────────────────────────────────────────────────────────
-function PrayerScreen() {
-  const isPastor = MEMBER.role === 'Pastor' || MEMBER.role === 'Co-Pastor';
-  const [tab, setTab] = useState('submit');
-  const [request, setRequest] = useState('');
-  const [name, setName] = useState('');
-  const [anon, setAnon] = useState(false);
-  const [prayers, setPrayers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    if (tab === 'pastor' && isPastor) loadPrayers();
-  }, [tab]);
-
-  const loadPrayers = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('prayer_requests').select('*').order('created_at', { ascending: false });
-    setPrayers(data || [
-      { id: '1', name: 'Sister Jones', request: 'Please pray for healing for my mother.', status: 'pending' },
-      { id: '2', name: 'Anonymous', request: 'Pray for my family situation.', status: 'pending' },
-      { id: '3', name: 'Brother Smith', request: 'Prayer for employment.', status: 'responded' },
-    ]);
-    setLoading(false);
-  };
-
-  const handleSubmit = async () => {
-    if (!request.trim()) return;
-    setSubmitting(true);
-    await supabase.from('prayer_requests').insert({
-      name: anon ? 'Anonymous' : (name || `${MEMBER.firstName} ${MEMBER.lastName}`),
-      request,
-      status: 'pending',
-      member_id: MEMBER.id,
-    });
-    setSubmitting(false);
-    setSuccess(true);
-    setRequest('');
-    setName('');
-    setTimeout(() => setSuccess(false), 3000);
-  };
-
-  const markResponded = async (id) => {
-    await supabase.from('prayer_requests').update({ status: 'responded' }).eq('id', id);
-    setPrayers(p => p.map(r => r.id === id ? { ...r, status: 'responded' } : r));
-  };
-
-  return (
-    <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
-      <View style={s.header}>
-        <Text style={s.headerTitle}>Prayer</Text>
-      </View>
-      {isPastor && (
-        <View style={s.tabs}>
-          <TouchableOpacity style={[s.tab, tab === 'submit' && s.tabActive]} onPress={() => setTab('submit')}>
-            <Text style={[s.tabText, tab === 'submit' && s.tabTextActive]}>Submit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.tab, tab === 'pastor' && s.tabActive]} onPress={() => setTab('pastor')}>
-            <Text style={[s.tabText, tab === 'pastor' && s.tabTextActive]}>Pastor View</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {tab === 'submit' ? (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
-            {success && (
-              <View style={[s.card, { backgroundColor: '#e8f5e9' }]}>
-                <Text style={{ color: C.green, fontWeight: '600' }}>🙏 Prayer request submitted. Pastor Baldwin will be praying for you!</Text>
-              </View>
-            )}
-            <TextInput
-              style={[s.input, { height: 120, textAlignVertical: 'top' }]}
-              placeholder="Share your prayer request..."
-              placeholderTextColor={C.gray}
-              value={request}
-              onChangeText={setRequest}
-              multiline
-            />
-            <TouchableOpacity style={[s.row, { alignItems: 'center', marginVertical: 12 }]} onPress={() => setAnon(!anon)}>
-              <View style={[s.checkbox, anon && s.checkboxChecked]}>
-                {anon && <Text style={{ color: C.white, fontSize: 12 }}>✓</Text>}
-              </View>
-              <Text style={[s.cardBody, { marginLeft: 8 }]}>Submit anonymously</Text>
-            </TouchableOpacity>
-            {!anon && (
-              <TextInput
-                style={s.input}
-                placeholder="Your name (optional)"
-                placeholderTextColor={C.gray}
-                value={name}
-                onChangeText={setName}
-              />
-            )}
-            <TouchableOpacity
-              style={[s.btn, { marginTop: 16, opacity: request.trim() ? 1 : 0.5 }]}
-              onPress={handleSubmit}
-              disabled={submitting || !request.trim()}
-            >
-              {submitting ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Submit Prayer Request</Text>}
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {loading ? <ActivityIndicator color={C.teal} /> : prayers.map(p => (
-            <View key={p.id} style={s.card}>
-              <View style={s.row}>
-                <Text style={s.cardTitle}>{p.name}</Text>
-                <View style={[s.badge, { backgroundColor: p.status === 'responded' ? C.green : C.gold }]}>
-                  <Text style={s.badgeText}>{p.status}</Text>
-                </View>
-              </View>
-              <Text style={[s.cardBody, { marginTop: 6 }]}>{p.request}</Text>
-              {p.status !== 'responded' && (
-                <TouchableOpacity style={[s.btn, { marginTop: 10, paddingVertical: 8 }]} onPress={() => markResponded(p.id)}>
-                  <Text style={s.btnText}>Mark Responded</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </SafeAreaView>
   );
 }
 
@@ -622,7 +504,7 @@ function BottomNav({ active, onNav }) {
   return (
     <View style={s.nav}>
       {NAV.map(n => (
-        <TouchableOpacity key={n.key} style={s.navItem} onPress={() => onNav(n.key)}>
+        <TouchableOpacity key={n.key} style={s.navItem} onPress={() => { console.log('NAV TAP:', n.key); onNav(n.key); }}>
           <Text style={s.navIcon}>{n.icon}</Text>
           <Text style={[s.navLabel, active === n.key && s.navLabelActive]}>{n.label}</Text>
         </TouchableOpacity>
@@ -645,65 +527,130 @@ const ROMANS_ROAD = [
   { step:9, title:"The Salvation Prayer", reference:"Romans 10:9-10", text:"Lord Jesus, I confess that I am a sinner. I believe that You died for my sins and rose from the dead. I invite You into my heart as my Lord and Savior. Amen.", reflection:"If you prayed this prayer and meant it — welcome to the family of God!", emoji:"🙏", color:"#880E4F", isSalvationPrayer:true },
 ];
 
+const SUPA_URL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
+const SUPA_HEADERS = { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY };
+
 function BibleScreen() {
+  console.log('BIBLESCREEN MOUNTED');
   const [tab, setTab] = React.useState('reading');
+  const [readingTab, setReadingTab] = React.useState('ot');
   const [romansStep, setRomansStep] = React.useState(0);
   const [romansComplete, setRomansComplete] = React.useState(false);
-  const [todayReading, setTodayReading] = React.useState(null);
-  const [devotional, setDevotional] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [readingTab, setReadingTab] = React.useState('ot');
   const [salvationSaved, setSalvationSaved] = React.useState(false);
+  const [devotional, setDevotional] = React.useState(null);
+  const [reading, setReading] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [started, setStarted] = React.useState(false);
+  const [currentDay, setCurrentDay] = React.useState(1);
+  const [progressId, setProgressId] = React.useState(null);
+  const [marking, setMarking] = React.useState(false);
 
-  const SUPABASE_URL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
-
+  // On mount: check for existing progress
   React.useEffect(() => {
-    if (tab === 'reading') fetchTodayReading();
-    if (tab === 'devotional') fetchDevotional();
-  }, [tab]);
+    checkProgress();
+  }, []);
 
-  const fetchTodayReading = async () => {
+  const checkProgress = async () => {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/Daily%20Readings?Date=eq.' + today + '&limit=1',
-        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+        SUPA_URL + '/rest/v1/reading_progress?user_id=eq.1&limit=1',
+        { headers: SUPA_HEADERS }
       );
       const data = await res.json();
-      if (data && data.length > 0) {
-        setTodayReading(data[0]);
+      console.log('PROGRESS DATA:', JSON.stringify(data));
+      if (Array.isArray(data) && data.length > 0) {
+        const day = data[0].current_day || 1;
+        console.log('FOUND DAY:', day);
+        setCurrentDay(day);
+        setProgressId(data[0].id);
+        setStarted(true);
+        await loadReading(day);
       } else {
-        const res2 = await fetch(
-          SUPABASE_URL + '/rest/v1/Daily%20Readings?order=id&limit=1',
-          { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
-        );
-        const data2 = await res2.json();
-        if (data2 && data2.length > 0) setTodayReading(data2[0]);
+        console.log('NO PROGRESS ROW FOUND');
+        setStarted(false);
       }
-    } catch(e) {}
+    } catch(e) {
+      setStarted(false);
+    }
     setLoading(false);
   };
 
-  const fetchDevotional = async () => {
+  const loadReading = async (day) => {
+    try {
+      const res = await fetch(
+        SUPA_URL + '/rest/v1/Daily%20Readings?day_number=eq.' + day + '&limit=1',
+        { headers: SUPA_HEADERS }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setReading(data[0]);
+      } else {
+        setReading(null);
+      }
+    } catch(e) {
+      setReading(null);
+    }
+  };
+
+  const startPlan = async () => {
     setLoading(true);
     try {
       const res = await fetch(
-        SUPABASE_URL + '/rest/v1/devotionals?order=week_start.desc&limit=1',
-        { headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY } }
+        SUPA_URL + '/rest/v1/reading_progress',
+        {
+          method: 'POST',
+          headers: { ...SUPA_HEADERS, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+          body: JSON.stringify({ user_id: '1', current_day: 1, started_at: new Date().toISOString().split('T')[0], last_read_at: new Date().toISOString().split('T')[0] })
+        }
       );
       const data = await res.json();
-      if (data && data.length > 0) setDevotional(data[0]);
+      if (Array.isArray(data) && data.length > 0) setProgressId(data[0].id);
     } catch(e) {}
+    setCurrentDay(1);
+    setStarted(true);
+    await loadReading(1);
     setLoading(false);
+  };
+
+  const markComplete = async () => {
+    if (marking) return;
+    setMarking(true);
+    const next = currentDay >= 365 ? 1 : currentDay + 1;
+    try {
+      await fetch(
+        SUPA_URL + '/rest/v1/reading_progress?user_id=eq.1',
+        {
+          method: 'PATCH',
+          headers: { ...SUPA_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_day: next, last_read_at: new Date().toISOString().split('T')[0] })
+        }
+      );
+    } catch(e) {}
+    setCurrentDay(next);
+    setReading(null);
+    setReadingTab('ot');
+    await loadReading(next);
+    setMarking(false);
+  };
+
+  const loadDevotional = async () => {
+    try {
+      const res = await fetch(
+        SUPA_URL + '/rest/v1/devotionals?order=week_start.desc&limit=1',
+        { headers: SUPA_HEADERS }
+      );
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) setDevotional(data[0]);
+    } catch(e) {}
   };
 
   const handleSalvationDecision = async () => {
     try {
-      await fetch(SUPABASE_URL + '/rest/v1/salvations_decisions', {
+      await fetch(SUPA_URL + '/rest/v1/salvations_decisions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+        headers: { ...SUPA_HEADERS, 'Content-Type': 'application/json' },
         body: JSON.stringify({ member_id: MEMBER.id, decision_date: new Date().toISOString().split('T')[0], notes: 'Accepted Christ through Walk Through Romans in the LWCIC app' })
       });
       setSalvationSaved(true);
@@ -719,7 +666,7 @@ function BibleScreen() {
         <Text style={{fontSize:12, color:'rgba(255,255,255,0.5)', marginBottom:12}}>Daily Reading · Romans Road · Devotional</Text>
         <View style={{flexDirection:'row', backgroundColor:'rgba(255,255,255,0.1)', borderRadius:10, padding:3, marginBottom:4}}>
           {[['reading','Today'],['romans','Romans'],['devotional','Devotional']].map(([key,label]) => (
-            <TouchableOpacity key={key} onPress={()=>setTab(key)} style={{flex:1, paddingVertical:8, borderRadius:8, backgroundColor:tab===key?'rgba(255,255,255,0.2)':'transparent', alignItems:'center'}}>
+            <TouchableOpacity key={key} onPress={()=>{ setTab(key); if(key==='devotional') loadDevotional(); }} style={{flex:1, paddingVertical:8, borderRadius:8, backgroundColor:tab===key?'rgba(255,255,255,0.2)':'transparent', alignItems:'center'}}>
               <Text style={{fontSize:11, fontWeight:'700', color:tab===key?C.white:'rgba(255,255,255,0.4)'}}>{label}</Text>
             </TouchableOpacity>
           ))}
@@ -731,14 +678,26 @@ function BibleScreen() {
         {/* DAILY READING */}
         {tab === 'reading' && (
           loading ? <ActivityIndicator color={C.teal} style={{marginTop:40}}/> :
-          todayReading ? (
+          !started ? (
+            <View style={{alignItems:'center', paddingTop:60, paddingHorizontal:24}}>
+              <Text style={{fontSize:56, marginBottom:16}}>📖</Text>
+              <Text style={{fontSize:22, fontWeight:'800', color:C.navy, textAlign:'center', marginBottom:8}}>365-Day Bible Reading Plan</Text>
+              <Text style={{fontSize:14, color:C.gray, textAlign:'center', lineHeight:22, marginBottom:32}}>Read through the Old Testament, New Testament, Psalms, and Proverbs in one year. Start at your own pace — your progress is saved automatically.</Text>
+              <TouchableOpacity onPress={startPlan} style={{backgroundColor:C.teal, borderRadius:16, paddingVertical:16, width:'100%', alignItems:'center'}}>
+                <Text style={{color:C.white, fontSize:16, fontWeight:'800'}}>Start Reading Plan 📖</Text>
+              </TouchableOpacity>
+            </View>
+          ) :
+          reading ? (
             <View>
               <View style={{backgroundColor:C.white, borderRadius:16, padding:16, marginBottom:12, elevation:2}}>
-                <Text style={{fontSize:11, color:C.teal, fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginBottom:4}}>
-                  {new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
-                </Text>
+                <Text style={{fontSize:11, color:C.teal, fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginBottom:4}}>Day {currentDay} of 365</Text>
                 <Text style={{fontSize:17, fontWeight:'700', color:C.navy}}>Daily Scripture Reading</Text>
                 <Text style={{fontSize:12, color:C.gray, marginTop:2}}>OT · NT · Psalms · Proverbs</Text>
+                <View style={{height:4, backgroundColor:C.lightGray, borderRadius:2, marginTop:10, overflow:'hidden'}}>
+                  <View style={{height:4, width:((currentDay/365)*100)+'%', backgroundColor:C.teal, borderRadius:2}}/>
+                </View>
+                <Text style={{fontSize:10, color:C.gray, marginTop:4}}>{Math.round((currentDay/365)*100)}% complete</Text>
               </View>
               <View style={{flexDirection:'row', gap:6, marginBottom:12}}>
                 {[['ot','OT'],['nt','NT'],['psalm','Psalm'],['proverb','Prov']].map(([key,label]) => (
@@ -750,45 +709,55 @@ function BibleScreen() {
               {readingTab==='ot' && (
                 <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
                   <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Old Testament</Text>
-                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.ot_reference}</Text>
-                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.ot_text}"</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{reading.ot_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{reading.ot_text}"</Text>
                   <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
                 </View>
               )}
               {readingTab==='nt' && (
                 <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
                   <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>New Testament</Text>
-                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.nt_reference}</Text>
-                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.nt_text}"</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{reading.nt_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{reading.nt_text}"</Text>
                   <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
                 </View>
               )}
               {readingTab==='psalm' && (
                 <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
                   <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Psalm</Text>
-                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.psalm_reference}</Text>
-                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.psalm_text}"</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{reading.psalm_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{reading.psalm_text}"</Text>
                   <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
                 </View>
               )}
               {readingTab==='proverb' && (
                 <View style={{backgroundColor:C.white, borderRadius:16, padding:18, elevation:2}}>
                   <Text style={{fontSize:13, fontWeight:'700', color:C.teal, marginBottom:4}}>Proverbs</Text>
-                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{todayReading.proverbs_reference}</Text>
-                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{todayReading.proverbs_text}"</Text>
+                  <Text style={{fontSize:16, fontWeight:'800', color:C.navy, marginBottom:12}}>{reading.proverbs_reference}</Text>
+                  <Text style={{fontSize:14, color:C.darkGray, lineHeight:24, fontStyle:'italic'}}>"{reading.proverbs_text}"</Text>
                   <Text style={{fontSize:11, color:C.gray, fontWeight:'600', marginTop:10}}>King James Version</Text>
                 </View>
               )}
+              <TouchableOpacity
+                onPress={markComplete}
+                disabled={marking}
+                style={{backgroundColor: marking ? C.gray : C.navy, borderRadius:16, paddingVertical:16, alignItems:'center', marginTop:16}}
+              >
+                <Text style={{color:C.white, fontSize:15, fontWeight:'800'}}>
+                  {marking ? 'Saving...' : currentDay >= 365 ? '🎉 Complete! Start Over' : '✅ Mark Complete — Day ' + (currentDay+1) + ' Next'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={{alignItems:'center', paddingTop:60}}>
               <Text style={{fontSize:48, marginBottom:12}}>📖</Text>
-              <Text style={{fontSize:16, fontWeight:'700', color:C.navy}}>No Reading for Today</Text>
+              <Text style={{fontSize:16, fontWeight:'700', color:C.navy}}>Could Not Load Reading</Text>
+              <Text style={{fontSize:13, color:C.gray, marginTop:8, textAlign:'center'}}>Please check your connection and try again.</Text>
             </View>
           )
         )}
 
-        {/* WALK THROUGH ROMANS */}
+        {/* ROMANS ROAD */}
         {tab === 'romans' && !romansComplete && (
           <View>
             <View style={{backgroundColor:C.white, borderRadius:14, padding:14, marginBottom:12, elevation:2}}>
@@ -800,30 +769,24 @@ function BibleScreen() {
                 <View style={{height:6, width:(((romansStep+1)/ROMANS_ROAD.length)*100)+'%', backgroundColor:C.teal, borderRadius:3}}/>
               </View>
             </View>
-            <View style={{backgroundColor:C.white, borderRadius:20, overflow:'hidden', marginBottom:12, elevation:3}}>
-              <View style={{backgroundColor:cur.color, padding:24, alignItems:'center'}}>
-                <Text style={{fontSize:48, marginBottom:8}}>{cur.emoji}</Text>
-                <Text style={{fontSize:20, fontWeight:'800', color:'#fff', marginBottom:4, textAlign:'center'}}>{cur.title}</Text>
-                <Text style={{fontSize:13, color:'rgba(255,255,255,0.8)', fontWeight:'600'}}>{cur.reference}</Text>
-              </View>
-              <View style={{padding:18}}>
-                <View style={{borderLeftWidth:4, borderLeftColor:cur.color, paddingLeft:14, marginBottom:14}}>
-                  <Text style={{fontSize:14, color:C.navy, lineHeight:24, fontStyle:'italic'}}>"{cur.text}"</Text>
-                  <Text style={{fontSize:11, color:C.gray, fontWeight:'700', marginTop:8}}>— {cur.reference} (KJV)</Text>
-                </View>
-                <Text style={{fontSize:13, color:C.darkGray, lineHeight:22}}>{cur.reflection}</Text>
-              </View>
+            <View style={{backgroundColor:cur.color, borderRadius:20, padding:20, marginBottom:12, elevation:4}}>
+              <Text style={{fontSize:32, marginBottom:8}}>{cur.emoji}</Text>
+              <Text style={{fontSize:11, color:'rgba(255,255,255,0.7)', fontWeight:'700', textTransform:'uppercase', letterSpacing:1, marginBottom:4}}>{cur.reference}</Text>
+              <Text style={{fontSize:20, fontWeight:'800', color:C.white, marginBottom:12, lineHeight:28}}>{cur.title}</Text>
+              <Text style={{fontSize:15, color:'rgba(255,255,255,0.9)', fontStyle:'italic', lineHeight:24}}>"{cur.text}"</Text>
+            </View>
+            <View style={{backgroundColor:C.white, borderRadius:16, padding:16, marginBottom:12, elevation:2}}>
+              <Text style={{fontSize:14, color:C.darkGray, lineHeight:24}}>{cur.reflection}</Text>
             </View>
             {cur.isSalvationPrayer && !salvationSaved && (
               <TouchableOpacity onPress={handleSalvationDecision} style={{backgroundColor:'#880E4F', borderRadius:16, padding:16, alignItems:'center', marginBottom:10}}>
-                <Text style={{color:C.white, fontSize:15, fontWeight:'700'}}>🙏 I Prayed This Prayer Today</Text>
+                <Text style={{color:C.white, fontSize:14, fontWeight:'700'}}>🙏 I Prayed This Prayer Today</Text>
               </TouchableOpacity>
             )}
             {cur.isSalvationPrayer && salvationSaved && (
               <View style={{backgroundColor:'#e8f5e9', borderRadius:14, padding:14, marginBottom:10, alignItems:'center'}}>
                 <Text style={{fontSize:22, marginBottom:4}}>🎉</Text>
                 <Text style={{fontSize:14, fontWeight:'700', color:'#2e7d32'}}>Welcome to God's Family!</Text>
-                <Text style={{fontSize:12, color:C.darkGray, marginTop:4, textAlign:'center'}}>Your decision has been recorded. Pastor Baldwin will be in touch.</Text>
               </View>
             )}
             <View style={{flexDirection:'row', gap:10}}>
@@ -838,18 +801,12 @@ function BibleScreen() {
             </View>
           </View>
         )}
-
         {tab === 'romans' && romansComplete && (
           <View style={{alignItems:'center', paddingTop:20}}>
             <View style={{width:100, height:100, borderRadius:50, backgroundColor:C.teal, alignItems:'center', justifyContent:'center', marginBottom:20}}>
               <Text style={{fontSize:44}}>✝️</Text>
             </View>
             <Text style={{fontSize:24, fontWeight:'800', color:C.navy, marginBottom:8, textAlign:'center'}}>Romans Road Complete!</Text>
-            <Text style={{fontSize:15, color:C.darkGray, lineHeight:24, textAlign:'center', marginBottom:20}}>You have walked through the path to salvation. Share this journey with someone you love.</Text>
-            <View style={{backgroundColor:C.navy, borderRadius:18, padding:18, marginBottom:20, width:'100%'}}>
-              <Text style={{fontSize:14, color:C.white, fontStyle:'italic', lineHeight:24, textAlign:'center'}}>"For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."</Text>
-              <Text style={{fontSize:12, color:C.teal, fontWeight:'700', marginTop:10, textAlign:'center'}}>— John 3:16</Text>
-            </View>
             <TouchableOpacity onPress={()=>{setRomansStep(0);setRomansComplete(false);setSalvationSaved(false);}} style={{width:'100%', borderWidth:1.5, borderColor:C.lightGray, borderRadius:16, padding:14, alignItems:'center', backgroundColor:C.white}}>
               <Text style={{fontSize:14, fontWeight:'700', color:C.navy}}>Start Over</Text>
             </TouchableOpacity>
@@ -858,7 +815,6 @@ function BibleScreen() {
 
         {/* DEVOTIONAL */}
         {tab === 'devotional' && (
-          loading ? <ActivityIndicator color={C.teal} style={{marginTop:40}}/> :
           devotional ? (
             <View>
               <View style={{backgroundColor:C.navy, borderRadius:20, padding:20, marginBottom:12, elevation:4}}>
@@ -871,7 +827,7 @@ function BibleScreen() {
               <View style={{backgroundColor:C.white, borderRadius:18, padding:18, elevation:2}}>
                 <Text style={{fontSize:15, color:C.darkGray, lineHeight:26}}>{devotional.body}</Text>
                 {devotional.author && (
-                  <Text style={{fontSize:12, color:C.gray, fontWeight:'700', marginTop:14, paddingTop:12, borderTopWidth:1, borderTopColor:C.lightGray}}>— {devotional.author}</Text>
+                  <Text style={{fontSize:12, color:C.gray, fontWeight:'700', marginTop:14}}>— {devotional.author}</Text>
                 )}
               </View>
             </View>
@@ -890,7 +846,7 @@ function BibleScreen() {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
-const STRIPE_PK = 'pk_live_51R3NIERwMrMolAzxBvSS9GicBxRlHqv59o7lDNm0O3N6jqUEhDKl4fFXxo5ybwVKqQRgZjkR2yQvbfHBnKaBUkQn00RlVHxbYP';
+// STRIPE_PK moved to top
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -912,10 +868,12 @@ export default function App() {
   };
 
   return (
-    <View style={s.flex}>
-      <View style={s.flex}>{renderScreen()}</View>
-      <BottomNav active={screen} onNav={setScreen} />
-    </View>
+    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic">
+      <View style={s.flex}>
+        <View style={s.flex}>{renderScreen()}</View>
+        <BottomNav active={screen} onNav={setScreen} />
+      </View>
+    </StripeProvider>
   );
 }
 
