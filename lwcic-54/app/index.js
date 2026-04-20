@@ -1017,7 +1017,7 @@ export default function App() {
   };
 
   return (
-    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic">
+    <StripeProvider publishableKey={STRIPE_PK} merchantIdentifier="merchant.org.livingwatercic.app">
       <View style={s.flex}>
         <View style={s.flex}>{renderScreen()}</View>
         <BottomNav active={screen} onNav={setScreen} />
