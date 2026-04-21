@@ -41,3 +41,9 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Service account / credential files (safety net)
+*service-account*.json
+*service_account*.json
+*-credentials*.json
+*-gsa*.json
