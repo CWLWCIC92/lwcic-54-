@@ -47,3 +47,4 @@ app-example
 *service_account*.json
 *-credentials*.json
 *-gsa*.json
+.backup-graveyard/
