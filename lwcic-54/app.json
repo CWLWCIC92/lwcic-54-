@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "lwcic54",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "org.livingwatercic.app",
