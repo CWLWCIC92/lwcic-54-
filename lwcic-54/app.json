@@ -25,7 +25,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "org.livingwatercic.app"
     },
@@ -53,7 +52,10 @@
           "merchantIdentifier": "merchant.org.livingwatercic.app",
           "enableGooglePay": true
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
