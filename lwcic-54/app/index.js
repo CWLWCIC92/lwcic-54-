@@ -659,7 +659,7 @@ const ROMANS_ROAD = [
 
 
 
-function BibleScreen() {
+function BibleScreen({ user }) {
   const [openSection, setOpenSection] = React.useState(null);
   const [romansStep, setRomansStep] = React.useState(0);
   const [romansComplete, setRomansComplete] = React.useState(false);
@@ -684,7 +684,8 @@ function BibleScreen() {
   const checkProgress = async () => {
     setLoading(true);
     try {
-      const res = await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.1&limit=1', { headers: SH });
+      const userId = user?.id || 'demo';
+      const res = await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.' + encodeURIComponent(userId) + '&limit=1', { headers: SH });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const day = data[0].current_day || 1;
@@ -714,7 +715,7 @@ function BibleScreen() {
       const res = await fetch(SURL + '/rest/v1/reading_progress', {
         method: 'POST',
         headers: { ...SH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify({ user_id: '1', current_day: 1, started_at: new Date().toISOString().split('T')[0], last_read_at: new Date().toISOString().split('T')[0] })
+        body: JSON.stringify({ user_id: user?.id || 'demo', current_day: 1, started_at: new Date().toISOString().split('T')[0], last_read_at: new Date().toISOString().split('T')[0] })
       });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) setProgressId(data[0].id);
@@ -730,7 +731,8 @@ function BibleScreen() {
     setMarking(true);
     const next = currentDay >= 365 ? 1 : currentDay + 1;
     try {
-      await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.1', {
+      const userId = user?.id || 'demo';
+      await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.' + encodeURIComponent(userId), {
         method: 'PATCH',
         headers: { ...SH, 'Content-Type': 'application/json' },
         body: JSON.stringify({ current_day: next, last_read_at: new Date().toISOString().split('T')[0] })
@@ -1009,7 +1011,7 @@ export default function App() {
       case 'home': return <HomeScreen onNavigate={setScreen} />;
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen />;
-        case 'bible': return <BibleScreen />;
+        case 'bible': return <BibleScreen user={user} />;
       case 'events': return <EventsScreen />;
       case 'profile': return <ProfileScreen onLogout={() => { setLoggedIn(false); setUser(null); }} user={user} />;
       default: return <HomeScreen onNavigate={setScreen} />;
