@@ -38,22 +38,97 @@ const MEMBER = {
 };
 
 // ─── Login Screen ─────────────────────────────────────────────────────────────
+// Block 1b.3 — Phone OTP sign-in (three-state state machine)
+// State flow: enter-info -> enter-code -> (onLogin)
 function LoginScreen({ onLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [stage, setStage] = useState('enter-info'); // 'enter-info' | 'enter-code'
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneDisplay, setPhoneDisplay] = useState(''); // '(412) 932-4646'
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  // Format raw digits as (XXX) XXX-XXXX while typing
+  const formatPhone = (raw) => {
+    const d = (raw || '').replace(/\D/g, '').slice(0, 10);
+    if (d.length === 0) return '';
+    if (d.length <= 3) return '(' + d;
+    if (d.length <= 6) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  };
+
+  // Normalize to E.164 (+1XXXXXXXXXX) for Supabase
+  const e164Phone = () => {
+    const d = phoneDisplay.replace(/\D/g, '');
+    return d.length === 10 ? '+1' + d : null;
+  };
+
+  const handlePhoneChange = (raw) => setPhoneDisplay(formatPhone(raw));
+
+  const handleSendCode = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert('Missing info', 'Please enter your first and last name.');
+      return;
+    }
+    const phone = e164Phone();
+    if (!phone) {
+      Alert.alert('Invalid phone', 'Please enter a valid 10-digit US phone number.');
+      return;
+    }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) onLogin(null); // fall back to demo
-      else { const { data: { user } } = await supabase.auth.getUser(); onLogin(user); }
-    } catch {
-      onLogin();
+      const { error } = await supabase.auth.signInWithOtp({
+        phone,
+        options: { shouldCreateUser: true },
+      });
+      if (error) {
+        Alert.alert('Could not send code', error.message || 'Please try again.');
+        return;
+      }
+      setStage('enter-code');
+    } catch (e) {
+      Alert.alert('Network error', 'Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyCode = async () => {
+    const phone = e164Phone();
+    const token = (code || '').replace(/\D/g, '');
+    if (token.length !== 6) {
+      Alert.alert('Invalid code', 'Please enter the 6-digit code we texted you.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms',
+      });
+      if (error) {
+        Alert.alert('Could not verify', error.message || 'Code may be expired. Tap Resend.');
+        return;
+      }
+      // Hand off to App: authUser + the name/phone the user just typed.
+      // Block 1b.4 will use this to match-or-create the members row.
+      onLogin({
+        authUser: data?.user || null,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone,
+      });
+    } catch (e) {
+      Alert.alert('Network error', 'Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setCode('');
+    setStage('enter-info');
   };
 
   return (
@@ -61,36 +136,77 @@ function LoginScreen({ onLogin }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
         <Text style={s.logoText}>Living Water</Text>
         <Text style={s.logoSub}>Church In Christ</Text>
+
         <View style={s.loginCard}>
-          <Text style={s.loginTitle}>Welcome Back</Text>
-          <TextInput
-            style={s.input}
-            placeholder="Email"
-            placeholderTextColor={C.gray}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-          <TextInput
-            style={s.input}
-            placeholder="Password"
-            placeholderTextColor={C.gray}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          <TouchableOpacity style={s.btn} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Sign In</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onLogin(null)}>
-            <Text style={s.demoText}>Continue as Guest (Demo)</Text>
-          </TouchableOpacity>
+          {stage === 'enter-info' && (
+            <>
+              <Text style={s.loginTitle}>Welcome</Text>
+              <Text style={s.subInput}>We'll text you a 6-digit code to sign in.</Text>
+              <TextInput
+                style={s.input}
+                placeholder="First Name"
+                placeholderTextColor={C.gray}
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              <TextInput
+                style={s.input}
+                placeholder="Last Name"
+                placeholderTextColor={C.gray}
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              <TextInput
+                style={s.input}
+                placeholder="(412) 555-0123"
+                placeholderTextColor={C.gray}
+                value={phoneDisplay}
+                onChangeText={handlePhoneChange}
+                keyboardType="phone-pad"
+                maxLength={14}
+              />
+              <TouchableOpacity style={s.btn} onPress={handleSendCode} disabled={loading}>
+                {loading ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Send Code</Text>}
+              </TouchableOpacity>
+
+              {/* TEMP: demo fallback retained until Block 1b.6 lands. Remove then. */}
+              <TouchableOpacity onPress={() => onLogin(null)}>
+                <Text style={s.demoText}>Continue as Guest (Demo)</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {stage === 'enter-code' && (
+            <>
+              <Text style={s.loginTitle}>Enter Code</Text>
+              <Text style={s.subInput}>We texted a 6-digit code to {phoneDisplay}.</Text>
+              <TextInput
+                style={s.codeInput}
+                placeholder="123456"
+                placeholderTextColor={C.gray}
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              <TouchableOpacity style={s.btn} onPress={handleVerifyCode} disabled={loading}>
+                {loading ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Verify Code</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleResend} style={s.linkBtn}>
+                <Text style={s.demoText}>Resend code / change phone</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 function HomeScreen({ onNavigate }) {
@@ -1040,6 +1156,9 @@ const s = StyleSheet.create({
   loginCard: { backgroundColor: C.white, borderRadius: 16, padding: 24, width: '85%' },
   loginTitle: { fontSize: 22, fontWeight: '700', color: C.navy, marginBottom: 20, textAlign: 'center' },
   demoText: { color: C.gray, textAlign: 'center', marginTop: 16, fontSize: 13 },
+  subInput: { color: C.gray, fontSize: 13, textAlign: 'center', marginTop: -8, marginBottom: 14, lineHeight: 18 },
+  codeInput: { borderWidth: 1, borderColor: C.lightGray, borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 24, color: C.dark, textAlign: 'center', letterSpacing: 8, fontWeight: '700' },
+  linkBtn: { marginTop: 8, paddingVertical: 6, alignItems: 'center' },
 
   // Header
   header: { backgroundColor: C.navy, paddingTop: 16, paddingBottom: 16, paddingHorizontal: 20, alignItems: 'center' },
