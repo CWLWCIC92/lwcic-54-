@@ -417,6 +417,40 @@ function WatchScreen() {
   );
 }
 
+// ─── Block 1b.4c: Tithing scripture rotation ──────────────────────────────────
+// Rotates through 5 KJV verses on tithing/giving. Deterministic by day-of-year
+// so a member sees a consistent verse within a session but variety over time.
+// Luke 6:38 is reserved for the post-gift Thank You screen; not in this rotation.
+const TITHING_VERSES = [
+  {
+    ref: 'Malachi 3:10',
+    text: 'Bring ye all the tithes into the storehouse, that there may be meat in mine house, and prove me now herewith, saith the LORD of hosts, if I will not open you the windows of heaven, and pour you out a blessing.',
+  },
+  {
+    ref: '2 Corinthians 9:7',
+    text: 'Every man according as he purposeth in his heart, so let him give; not grudgingly, or of necessity: for God loveth a cheerful giver.',
+  },
+  {
+    ref: 'Proverbs 3:9',
+    text: 'Honour the LORD with thy substance, and with the firstfruits of all thine increase.',
+  },
+  {
+    ref: '1 Chronicles 29:14',
+    text: 'All things come of thee, and of thine own have we given thee.',
+  },
+  {
+    ref: 'Matthew 6:21',
+    text: 'For where your treasure is, there will your heart be also.',
+  },
+];
+
+function giveScripture() {
+  const now = new Date();
+  // Day-of-year-ish: month*31 + day, modulo verse count
+  const idx = ((now.getMonth() * 31) + now.getDate()) % TITHING_VERSES.length;
+  return TITHING_VERSES[idx];
+}
+
 // ─── Give Screen ──────────────────────────────────────────────────────────────
 function GiveScreen() {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -426,7 +460,7 @@ function GiveScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const funds = ['Tithe', 'Offering', 'Building Fund', 'Missions', 'Love Offering'];
+  const funds = ['Tithe', 'Offering'];
 
   const handleGive = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -503,12 +537,18 @@ function GiveScreen() {
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
           {step === 1 && <>
             <Text style={s.sectionTitle}>Select Fund</Text>
-            {funds.map(f => (
-              <TouchableOpacity key={f} style={[s.card, s.row, { alignItems: 'center' }]} onPress={() => setFund(f)}>
-                <View style={[s.radio, fund === f && s.radioSelected]} />
-                <Text style={[s.cardTitle, { marginLeft: 12 }]}>{f}</Text>
-              </TouchableOpacity>
-            ))}
+            <View style={s.fundRow}>
+              {funds.map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[s.fundCard, fund === f && s.fundCardSelected]}
+                  onPress={() => setFund(f)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.fundCardText, fund === f && s.fundCardTextSelected]}>{f}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <Text style={[s.sectionTitle, { marginTop: 20 }]}>Amount</Text>
             <View style={s.amountRow}>
               <Text style={s.dollarSign}>$</Text>
@@ -521,11 +561,6 @@ function GiveScreen() {
                 placeholderTextColor={C.gray}
               />
             </View>
-            {['25', '50', '100', '250'].map(a => (
-              <TouchableOpacity key={a} style={s.quickBtn} onPress={() => setAmount(a)}>
-                <Text style={s.quickBtnText}>${a}</Text>
-              </TouchableOpacity>
-            ))}
             <TextInput
               style={[s.input, { marginTop: 16 }]}
               placeholder="Note (optional)"
@@ -533,6 +568,18 @@ function GiveScreen() {
               value={note}
               onChangeText={setNote}
             />
+            {(() => {
+              const v = giveScripture();
+              return (
+                <View style={s.scriptureBox}>
+                  <View style={s.scriptureBar} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.scriptureText}>{v.text}</Text>
+                    <Text style={s.scriptureRef}>— {v.ref}</Text>
+                  </View>
+                </View>
+              );
+            })()}
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
               onPress={() => setStep(2)}
@@ -1313,6 +1360,56 @@ const s = StyleSheet.create({
   btnText: { color: C.white, fontWeight: '700', fontSize: 16 },
 
   // Give
+    // Block 1b.4c: Give screen — side-by-side fund cards + scripture box
+  fundRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  fundCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  fundCardSelected: {
+    borderColor: '#0097a7',
+    backgroundColor: '#e0f7fa',
+  },
+  fundCardText: { fontSize: 16, fontWeight: '700', color: '#222' },
+  fundCardTextSelected: { color: '#0097a7' },
+  scriptureBox: {
+    flexDirection: 'row',
+    marginTop: 20,
+    marginBottom: 12,
+    paddingVertical: 14,
+    paddingRight: 14,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+  },
+  scriptureBar: {
+    width: 3,
+    backgroundColor: '#f5a623',
+    marginRight: 14,
+    marginLeft: 12,
+    borderRadius: 2,
+  },
+  scriptureText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: '#444',
+    lineHeight: 19,
+  },
+  scriptureRef: {
+    fontSize: 11,
+    color: '#888',
+    marginTop: 6,
+    fontWeight: '600',
+  },
   amountRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 10, paddingHorizontal: 16, marginBottom: 12 },
   dollarSign: { fontSize: 28, fontWeight: '700', color: C.navy, marginRight: 4 },
   amountInput: { flex: 1, fontSize: 36, fontWeight: '800', color: C.navy, paddingVertical: 12 },
