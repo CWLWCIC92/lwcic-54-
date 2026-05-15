@@ -37,6 +37,81 @@ const MEMBER = {
   status: 'Member',
 };
 
+// ─── Block 1b.4: Member create-or-link ────────────────────────────────────────
+// Given the just-authenticated user + the name/phone they typed at sign-in,
+// either link an existing members row (matched by phone_normalized) or
+// create a new one with source='app_self_signup'.
+//
+// LovesFlock-portable: this function is the canonical recipe every church app
+// will use. Returns { member, error }. Caller decides UI response to error.
+//
+// Key design decisions (May 14 lock):
+//   - Phone is the unique identifier. Match by phone_normalized.
+//   - On returning sign-in, IGNORE the name fields the user typed (existing
+//     pastor-curated name is preserved).
+//   - On match, ONLY update auth_user_id. Leave source alone so manual /
+//     crm_added rows keep their provenance.
+//   - On no-match, INSERT with source='app_self_signup'.
+async function resolveMember({ authUser, firstName, lastName, phone }) {
+  try {
+    if (!authUser?.id) {
+      return { member: null, error: new Error('Missing authUser') };
+    }
+    // Normalize: last 10 digits of E.164 phone (matches DB generated column)
+    const phoneNorm = (phone || '').replace(/\D/g, '').slice(-10);
+    if (phoneNorm.length !== 10) {
+      return { member: null, error: new Error('Invalid phone for matching') };
+    }
+
+    // 1) Try to match an existing member by phone_normalized
+    const { data: existing, error: selErr } = await supabase
+      .from('members')
+      .select('*')
+      .eq('phone_normalized', phoneNorm)
+      .maybeSingle();
+
+    if (selErr) return { member: null, error: selErr };
+
+    if (existing) {
+      // Returning member: only stamp auth_user_id (preserve name + source)
+      if (existing.auth_user_id === authUser.id) {
+        return { member: existing, error: null };
+      }
+      const { data: updated, error: updErr } = await supabase
+        .from('members')
+        .update({ auth_user_id: authUser.id })
+        .eq('id', existing.id)
+        .select('*')
+        .single();
+      if (updErr) return { member: existing, error: updErr };
+      return { member: updated, error: null };
+    }
+
+    // 2) No match → INSERT a fresh row, source='app_self_signup'
+    // Phone is stored in the display format the user typed (formatted at signin).
+    const displayPhone = phone && phone.startsWith('+1')
+      ? `(${phone.slice(2,5)}) ${phone.slice(5,8)}-${phone.slice(8)}`
+      : phone;
+
+    const { data: inserted, error: insErr } = await supabase
+      .from('members')
+      .insert({
+        first_name: (firstName || '').trim() || 'Friend',
+        last_name: (lastName || '').trim() || '',
+        phone: displayPhone,
+        auth_user_id: authUser.id,
+        source: 'app_self_signup',
+      })
+      .select('*')
+      .single();
+
+    if (insErr) return { member: null, error: insErr };
+    return { member: inserted, error: null };
+  } catch (e) {
+    return { member: null, error: e };
+  }
+}
+
 // ─── Login Screen ─────────────────────────────────────────────────────────────
 // Block 1b.3 — Phone OTP sign-in (three-state state machine)
 // State flow: enter-info -> enter-code -> (onLogin)
@@ -693,31 +768,49 @@ function Row({ label, value }) {
 }
 
 // ----- Profile Screen -----------------------------------------------
-function ProfileScreen({ onLogout, user }) {
+function ProfileScreen({ onLogout, user, member, memberLoading }) {
   const [prayers, setPrayers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
+  // Block 1b.4: read profile from the resolved member row (prop), not from
+  // a separate email-based lookup. Falls back gracefully while resolving.
+  const profile = member;
 
   useEffect(() => {
-    const load = async () => {
-      if (user) {
-        const { data: memberData } = await supabase.from('members').select('*').eq('email', user.email).single();
-        if (memberData) setProfile(memberData);
-        const { data } = await supabase.from('prayer_requests').select('*').eq('email', user.email).order('created_at', { ascending: false }).limit(10);
+    const loadPrayers = async () => {
+      if (member?.id) {
+        const { data } = await supabase
+          .from('prayer_requests')
+          .select('*')
+          .eq('member_id', member.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        setPrayers(data || []);
+      } else if (member?.email) {
+        // Fallback for legacy rows: match by email if member_id link absent
+        const { data } = await supabase
+          .from('prayer_requests')
+          .select('*')
+          .eq('email', member.email)
+          .order('created_at', { ascending: false })
+          .limit(10);
         setPrayers(data || []);
       }
       setLoading(false);
     };
-    load();
-  }, []);
+    if (!memberLoading) loadPrayers();
+  }, [member?.id, memberLoading]);
 
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={[s.header, { paddingBottom: 24 }]}>
         <View style={s.avatar}>
-          <Text style={s.avatarText}>{(profile?.first_name || user?.email || 'G')[0].toUpperCase()}</Text>
+          <Text style={s.avatarText}>{(profile?.first_name || user?.firstName || 'G')[0].toUpperCase()}</Text>
         </View>
-        <Text style={s.headerTitle}>{profile ? profile.first_name + ' ' + profile.last_name : user?.email}</Text>
+        {memberLoading && !profile ? (
+          <Text style={s.headerTitle}>Loading…</Text>
+        ) : (
+        <Text style={s.headerTitle}>{profile ? profile.first_name + ' ' + profile.last_name : (user?.firstName || 'Welcome')}</Text>
+        )}
         <Text style={s.headerSub}>{profile?.role || 'Member'}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -1119,17 +1212,60 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [screen, setScreen] = useState('home');
   const [user, setUser] = useState(null);
+  // Block 1b.4: member row resolved after OTP verify
+  const [member, setMember] = useState(null);
+  const [memberLoading, setMemberLoading] = useState(false);
 
-  if (!loggedIn) return <LoginScreen onLogin={(u) => { setLoggedIn(true); setUser(u); }} />;
+  // Block 1b.4: called after LoginScreen verifies OTP successfully
+  const handleLoginSuccess = async (loginData) => {
+    setUser(loginData);
+    setLoggedIn(true);
+    setMemberLoading(true);
+    const { member: m, error } = await resolveMember(loginData);
+    setMemberLoading(false);
+    if (error) {
+      console.log('[1b.4] resolveMember error:', error?.message || error);
+      Alert.alert(
+        "We're having trouble loading your profile",
+        "Please check your connection and try again.",
+        [
+          {
+            text: 'Retry',
+            onPress: async () => {
+              setMemberLoading(true);
+              const r2 = await resolveMember(loginData);
+              setMemberLoading(false);
+              if (r2.member) setMember(r2.member);
+              else console.log('[1b.4] retry also failed:', r2.error?.message || r2.error);
+            },
+          },
+          { text: 'Continue', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    setMember(m);
+  };
+
+  const handleLogout = () => {
+    supabase.auth.signOut().catch(() => {});
+    setLoggedIn(false);
+    setUser(null);
+    setMember(null);
+    setMemberLoading(false);
+    setScreen('home');
+  };
+
+  if (!loggedIn) return <LoginScreen onLogin={handleLoginSuccess} />;
 
   const renderScreen = () => {
     switch (screen) {
       case 'home': return <HomeScreen onNavigate={setScreen} />;
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen />;
-        case 'bible': return <BibleScreen user={user} />;
+      case 'bible': return <BibleScreen user={user} />;
       case 'events': return <EventsScreen />;
-      case 'profile': return <ProfileScreen onLogout={() => { setLoggedIn(false); setUser(null); }} user={user} />;
+      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} />;
       default: return <HomeScreen onNavigate={setScreen} />;
     }
   };
