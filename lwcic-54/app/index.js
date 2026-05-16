@@ -452,13 +452,47 @@ function giveScripture() {
 }
 
 // ─── Give Screen ──────────────────────────────────────────────────────────────
-function GiveScreen() {
+function GiveScreen({ member, setMember }) {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
   const [fund, setFund] = useState('Tithe');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  // Block 1b.4b: email capture state — pre-populated from member if available
+  const [emailDraft, setEmailDraft] = useState(member?.email || '');
+  const [emailSaving, setEmailSaving] = useState(false);
+
+  // Block 1b.4b: handler for the email step's Continue button
+  const handleEmailContinue = async () => {
+    const cleaned = (emailDraft || '').trim().toLowerCase();
+    // Lightweight email validation: x@y.z minimum
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+    if (!valid) {
+      Alert.alert('Email Required', 'Please enter a valid email address so we can send your receipt.');
+      return;
+    }
+    if (!member?.id) {
+      Alert.alert('Sign-In Required', 'Please sign in again to continue.');
+      return;
+    }
+    setEmailSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .update({ email: cleaned })
+        .eq('id', member.id)
+        .select('*')
+        .single();
+      if (error) throw error;
+      if (typeof setMember === 'function') setMember(data);
+      setEmailSaving(false);
+      setStep(2);
+    } catch (e) {
+      setEmailSaving(false);
+      Alert.alert('Could Not Save', e.message || 'Please try again.');
+    }
+  };
 
   const funds = ['Tithe', 'Offering'];
 
@@ -582,10 +616,45 @@ function GiveScreen() {
             })()}
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
-              onPress={() => setStep(2)}
+              onPress={() => {
+                // Block 1b.4b: if member has no email yet, capture before review
+                if (!member?.email) setStep('email');
+                else setStep(2);
+              }}
               disabled={!amount}
             >
               <Text style={s.btnText}>Review Gift</Text>
+            </TouchableOpacity>
+          </>}
+          {step === 'email' && <>
+            <Text style={s.sectionTitle}>Email Address</Text>
+            <TextInput
+              style={s.input}
+              placeholder="you@example.com"
+              placeholderTextColor={C.gray}
+              value={emailDraft}
+              onChangeText={setEmailDraft}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            <Text style={s.emailHelp}>
+              Your receipt will be sent to this email for your records.
+            </Text>
+            <TouchableOpacity
+              style={[s.btn, { marginTop: 24, opacity: emailSaving ? 0.6 : 1 }]}
+              onPress={handleEmailContinue}
+              disabled={emailSaving}
+            >
+              <Text style={s.btnText}>{emailSaving ? 'Saving…' : 'Continue'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ marginTop: 16, alignItems: 'center' }}
+              onPress={() => setStep(1)}
+              disabled={emailSaving}
+            >
+              <Text style={{ color: C.gray, fontSize: 14 }}>Back</Text>
             </TouchableOpacity>
           </>}
           {step === 2 && <>
@@ -1309,7 +1378,7 @@ export default function App() {
     switch (screen) {
       case 'home': return <HomeScreen onNavigate={setScreen} />;
       case 'watch': return <WatchScreen />;
-      case 'give': return <GiveScreen />;
+      case 'give': return <GiveScreen member={member} setMember={setMember} />;
       case 'bible': return <BibleScreen user={user} />;
       case 'events': return <EventsScreen />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} />;
@@ -1403,6 +1472,13 @@ const s = StyleSheet.create({
     fontStyle: 'italic',
     color: '#444',
     lineHeight: 19,
+  },
+  emailHelp: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 12,
+    lineHeight: 19,
+    fontStyle: 'italic',
   },
   scriptureRef: {
     fontSize: 11,
