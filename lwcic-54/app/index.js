@@ -528,7 +528,7 @@ function GiveScreen({ member, setMember }) {
       }
 
       await supabase.from('giving').insert({
-        member_id: MEMBER.id,
+        member_id: member?.id,
         amount: parseFloat(amount),
         fund,
         note,
@@ -984,7 +984,7 @@ const ROMANS_ROAD = [
 
 
 
-function BibleScreen({ user }) {
+function BibleScreen({ user, member }) {
   const [openSection, setOpenSection] = React.useState(null);
   const [romansStep, setRomansStep] = React.useState(0);
   const [romansComplete, setRomansComplete] = React.useState(false);
@@ -1009,7 +1009,7 @@ function BibleScreen({ user }) {
   const checkProgress = async () => {
     setLoading(true);
     try {
-      const userId = user?.id || 'demo';
+      const userId = user?.authUser?.id;
       const res = await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.' + encodeURIComponent(userId) + '&limit=1', { headers: SH });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
@@ -1040,7 +1040,7 @@ function BibleScreen({ user }) {
       const res = await fetch(SURL + '/rest/v1/reading_progress', {
         method: 'POST',
         headers: { ...SH, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify({ user_id: user?.id || 'demo', current_day: 1, started_at: new Date().toISOString().split('T')[0], last_read_at: new Date().toISOString().split('T')[0] })
+        body: JSON.stringify({ user_id: user?.authUser?.id, current_day: 1, started_at: new Date().toISOString().split('T')[0], last_read_at: new Date().toISOString().split('T')[0] })
       });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) setProgressId(data[0].id);
@@ -1056,7 +1056,7 @@ function BibleScreen({ user }) {
     setMarking(true);
     const next = currentDay >= 365 ? 1 : currentDay + 1;
     try {
-      const userId = user?.id || 'demo';
+      const userId = user?.authUser?.id;
       await fetch(SURL + '/rest/v1/reading_progress?user_id=eq.' + encodeURIComponent(userId), {
         method: 'PATCH',
         headers: { ...SH, 'Content-Type': 'application/json' },
@@ -1288,10 +1288,10 @@ function BibleScreen({ user }) {
                 if (!pRequest.trim()) return;
                 try {
                   await supabase.from('prayer_requests').insert({
-                    name: pName.trim() ? pName.trim() : MEMBER.firstName + ' ' + MEMBER.lastName,
+                    name: pName.trim() ? pName.trim() : ((member?.first_name || '') + ' ' + (member?.last_name || '')).trim(),
                     request: pRequest,
                     status: 'pending',
-                    email: MEMBER.email,
+                    email: member?.email,
                   });
                   setPRequest('');
                   Alert.alert('🙏 Submitted', 'Pastor Baldwin and Co-Pastor Lisa will be praying for you!');
@@ -1379,7 +1379,7 @@ export default function App() {
       case 'home': return <HomeScreen onNavigate={setScreen} />;
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen member={member} setMember={setMember} />;
-      case 'bible': return <BibleScreen user={user} />;
+      case 'bible': return <BibleScreen user={user} member={member} />;
       case 'events': return <EventsScreen />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} />;
       default: return <HomeScreen onNavigate={setScreen} />;
