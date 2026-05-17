@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform, FlatList
+  KeyboardAvoidingView, Platform, FlatList, Switch
 } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,16 +26,6 @@ const C = {
   dark: '#222',
 };
 
-const MEMBER = {
-  id: '1',
-  firstName: 'William',
-  lastName: 'Baldwin',
-  role: 'Pastor',
-  email: 'cw@livingwatercic.org',
-  phone: '(412) 555-0101',
-  joinDate: '2010-01-01',
-  status: 'Member',
-};
 
 // ─── Block 1b.4: Member create-or-link ────────────────────────────────────────
 // Given the just-authenticated user + the name/phone they typed at sign-in,
@@ -677,138 +667,6 @@ function GiveScreen({ member, setMember }) {
   );
 }
 
-function PrayerScreen() {
-  const isPastor = MEMBER.role === 'Pastor' || MEMBER.role === 'Co-Pastor';
-  const [tab, setTab] = useState('submit');
-  const [request, setRequest] = useState('');
-  const [name, setName] = useState('');
-  const [anon, setAnon] = useState(false);
-  const [prayers, setPrayers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    if (tab === 'pastor' && isPastor) loadPrayers();
-  }, [tab]);
-
-  const loadPrayers = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('prayer_requests').select('*').order('created_at', { ascending: false });
-    setPrayers(data || [
-      { id: '1', name: 'Sister Jones', request: 'Please pray for healing for my mother.', status: 'pending' },
-      { id: '2', name: 'Anonymous', request: 'Pray for my family situation.', status: 'pending' },
-      { id: '3', name: 'Brother Smith', request: 'Prayer for employment.', status: 'responded' },
-    ]);
-    setLoading(false);
-  };
-
-  const handleSubmit = async () => {
-    if (!request.trim()) return;
-    setSubmitting(true);
-    const currentUser = await supabase.auth.getUser();
-    const userEmail = currentUser?.data?.user?.email || null;
-    const { error: insertError } = await supabase.from('prayer_requests').insert({
-      name: anon ? 'Anonymous' : (name || `${MEMBER.firstName} ${MEMBER.lastName}`),
-      request,
-      status: 'pending',
-      email: anon ? null : userEmail,
-    });
-    if (insertError) { console.log('Prayer insert error:', insertError); }
-    setSubmitting(false);
-    setSuccess(true);
-    setRequest('');
-    setName('');
-    setTimeout(() => setSuccess(false), 3000);
-  };
-
-  const markResponded = async (id) => {
-    await supabase.from('prayer_requests').update({ status: 'responded' }).eq('id', id);
-    setPrayers(p => p.map(r => r.id === id ? { ...r, status: 'responded' } : r));
-  };
-
-  return (
-    <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
-      <View style={s.header}>
-        <Text style={s.headerTitle}>Prayer</Text>
-      </View>
-      {isPastor && (
-        <View style={s.tabs}>
-          <TouchableOpacity style={[s.tab, tab === 'submit' && s.tabActive]} onPress={() => setTab('submit')}>
-            <Text style={[s.tabText, tab === 'submit' && s.tabTextActive]}>Submit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.tab, tab === 'pastor' && s.tabActive]} onPress={() => setTab('pastor')}>
-            <Text style={[s.tabText, tab === 'pastor' && s.tabTextActive]}>Pastor View</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {tab === 'submit' ? (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
-            {success && (
-              <View style={[s.card, { backgroundColor: '#e8f5e9' }]}>
-                <Text style={{ color: C.green, fontWeight: '600' }}>🙏 Prayer request submitted. Pastor Baldwin will be praying for you!</Text>
-              </View>
-            )}
-            <TextInput
-              style={[s.input, { height: 120, textAlignVertical: 'top' }]}
-              placeholder="Share your prayer request..."
-              placeholderTextColor={C.gray}
-              value={request}
-              onChangeText={setRequest}
-              multiline
-            />
-            <TouchableOpacity style={[s.row, { alignItems: 'center', marginVertical: 12 }]} onPress={() => setAnon(!anon)}>
-              <View style={[s.checkbox, anon && s.checkboxChecked]}>
-                {anon && <Text style={{ color: C.white, fontSize: 12 }}>✓</Text>}
-              </View>
-              <Text style={[s.cardBody, { marginLeft: 8 }]}>Submit anonymously</Text>
-            </TouchableOpacity>
-            {!anon && (
-              <TextInput
-                style={s.input}
-                placeholder="Your name (optional)"
-                placeholderTextColor={C.gray}
-                value={name}
-                onChangeText={setName}
-              />
-            )}
-            <TouchableOpacity
-              style={[s.btn, { marginTop: 16, opacity: request.trim() ? 1 : 0.5 }]}
-              onPress={handleSubmit}
-              disabled={submitting || !request.trim()}
-            >
-              {submitting ? <ActivityIndicator color={C.white} /> : <Text style={s.btnText}>Submit Prayer Request</Text>}
-            </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {loading ? <ActivityIndicator color={C.teal} /> : prayers.map(p => (
-            <View key={p.id} style={s.card}>
-              <View style={s.row}>
-                <Text style={s.cardTitle}>{p.name}</Text>
-                <View style={[s.badge, { backgroundColor: p.status === 'responded' ? C.green : C.gold }]}>
-                  <Text style={s.badgeText}>{p.status}</Text>
-                </View>
-              </View>
-              <Text style={[s.cardBody, { marginTop: 6 }]}>{p.request}</Text>
-              {p.status !== 'responded' && (
-                <TouchableOpacity style={[s.btn, { marginTop: 10, paddingVertical: 8 }]} onPress={() => markResponded(p.id)}>
-                  <Text style={s.btnText}>Mark Responded</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-}
-
-// ─── Events Screen ────────────────────────────────────────────────────────────
 function EventsScreen() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -998,7 +856,7 @@ function BibleScreen({ user, member }) {
   const [progressId, setProgressId] = React.useState(null);
   const [marking, setMarking] = React.useState(false);
   const [pRequest, setPRequest] = React.useState('');
-  const [pName, setPName] = React.useState('');
+  const [pAnon, setPAnon] = React.useState(false);
 
   const SURL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
   const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
@@ -1277,30 +1135,36 @@ function BibleScreen({ user, member }) {
                 value={pRequest}
                 onChangeText={setPRequest}
               />
-              <TextInput
-                style={s.input}
-                placeholder="Your name (optional)"
-                placeholderTextColor={C.gray}
-                value={pName}
-                onChangeText={setPName}
-              />
               <TouchableOpacity style={s.btn} onPress={async () => {
                 if (!pRequest.trim()) return;
                 try {
                   await supabase.from('prayer_requests').insert({
-                    name: pName.trim() ? pName.trim() : ((member?.first_name || '') + ' ' + (member?.last_name || '')).trim(),
+                    member_id: member?.id,
                     request: pRequest,
                     status: 'pending',
-                    email: member?.email,
+                    anonymous: pAnon,
                   });
                   setPRequest('');
-                  Alert.alert('🙏 Submitted', 'Pastor Baldwin and Co-Pastor Lisa will be praying for you!');
+                  setPAnon(false);
+                  if (pAnon) {
+                    Alert.alert('🙏 Submitted anonymously', 'Pastor Lisa and Minister C.W. will be praying for you.');
+                  } else {
+                    Alert.alert('🙏 Submitted', 'Pastor Lisa and Minister C.W. will be praying for you!');
+                  }
                 } catch(e) {
                   Alert.alert('Error', 'Could not submit. Please try again.');
                 }
               }}>
                 <Text style={s.btnText}>Submit Prayer Request</Text>
               </TouchableOpacity>
+              <View style={s.anonRow}>
+                <Text style={s.anonLabel}>Submit anonymously</Text>
+                <Switch
+                  value={pAnon}
+                  onValueChange={setPAnon}
+                  trackColor={{ false: '#ddd', true: C.teal }}
+                />
+              </View>
             </View>
           </View>
         )}
@@ -1532,4 +1396,15 @@ const s = StyleSheet.create({
   navIcon: { fontSize: 20 },
   navLabel: { fontSize: 10, color: C.gray, marginTop: 2 },
   navLabelActive: { color: C.teal, fontWeight: '700' },
+  anonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  anonLabel: {
+    fontSize: 15,
+    color: '#444',
+  },
 });
