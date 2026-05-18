@@ -1187,6 +1187,61 @@ function BottomNav({ active, onNav }) {
   );
 }
 
+// ─── Welcome Screen ──────────────────────────────────────────────────────────
+// Block 1b.5a — One-time pastoral welcome after first OTP verify.
+// Gated by members.welcomed_at. Tapping Continue stamps the timestamp,
+// so returning members never see this screen again.
+function WelcomeScreen({ firstName, onContinue, busy }) {
+  const name = (firstName || '').trim() || 'Friend';
+  return (
+    <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
+      <ScrollView contentContainerStyle={s.welcomeScroll}>
+        <View style={s.welcomeCard}>
+          <Text style={s.welcomeHeading}>
+            Welcome to Living Water Church, {name}! 🙏
+          </Text>
+
+          <Text style={s.welcomeBody}>
+            We're so glad you're here. This app is your connection to
+            our church family — sermons, prayer requests, giving, and
+            the Word of God, built right in.
+          </Text>
+
+          <Text style={s.welcomeBody}>
+            Come and eat — the Word is good. This app is designed to
+            meet you right where you are, and we look forward to seeing
+            you grow closer to Jesus.
+          </Text>
+
+          <View style={s.welcomeVerseBox}>
+            <Text style={s.welcomeVerse}>
+              "And Jesus said unto them, I am the bread of life: he
+              that cometh to me shall never hunger; and he that
+              believeth on me shall never thirst."
+            </Text>
+            <Text style={s.welcomeVerseRef}>— John 6:35 (KJV)</Text>
+          </View>
+
+          <Text style={s.welcomeSignoff}>Praying for you,</Text>
+          <Text style={s.welcomeSignature}>
+            — Pastor Lisa & Minister C.W. Baldwin
+          </Text>
+
+          <TouchableOpacity
+            style={[s.welcomeBtn, busy && { opacity: 0.6 }]}
+            onPress={onContinue}
+            disabled={busy}
+          >
+            {busy
+              ? <ActivityIndicator color={C.white} />
+              : <Text style={s.welcomeBtnText}>Continue</Text>}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -1236,7 +1291,37 @@ export default function App() {
     setScreen('home');
   };
 
+  // Block 1b.5a — Welcome gate: one-time pastoral message for new members
+  const [welcomeBusy, setWelcomeBusy] = useState(false);
+  const handleWelcomeContinue = async () => {
+    if (!member?.id) return;
+    setWelcomeBusy(true);
+    const nowIso = new Date().toISOString();
+    const { error: wErr } = await supabase
+      .from('members')
+      .update({ welcomed_at: nowIso })
+      .eq('id', member.id);
+    if (wErr) {
+      console.log('[1b.5a] welcomed_at update error:', wErr?.message || wErr);
+      // Soft-fail: stamp locally so user moves on; we'll retry on next launch.
+    }
+    setMember({ ...member, welcomed_at: nowIso });
+    setWelcomeBusy(false);
+  };
+
   if (!loggedIn) return <LoginScreen onLogin={handleLoginSuccess} />;
+
+  // Block 1b.5a — Show Welcome until welcomed_at is set on the member row.
+  // Wait for member to resolve before deciding (avoids flash of welcome).
+  if (member && !member.welcomed_at) {
+    return (
+      <WelcomeScreen
+        firstName={member.first_name || user?.firstName}
+        onContinue={handleWelcomeContinue}
+        busy={welcomeBusy}
+      />
+    );
+  }
 
   const renderScreen = () => {
     switch (screen) {
@@ -1407,4 +1492,17 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: '#444',
   },
+
+  // Welcome screen (Block 1b.5a)
+  welcomeScroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  welcomeCard: { backgroundColor: C.white, borderRadius: 16, padding: 24 },
+  welcomeHeading: { fontSize: 22, fontWeight: '800', color: C.navy, marginBottom: 16, lineHeight: 30 },
+  welcomeBody: { fontSize: 16, color: C.dark, lineHeight: 24, marginBottom: 14 },
+  welcomeVerseBox: { backgroundColor: '#f7faff', borderLeftWidth: 4, borderLeftColor: C.gold, padding: 14, borderRadius: 6, marginVertical: 10 },
+  welcomeVerse: { fontSize: 15, fontStyle: 'italic', color: C.dark, lineHeight: 22 },
+  welcomeVerseRef: { fontSize: 13, color: C.navy, fontWeight: '700', marginTop: 8, textAlign: 'right' },
+  welcomeSignoff: { fontSize: 15, color: C.dark, marginTop: 14 },
+  welcomeSignature: { fontSize: 15, color: C.navy, fontWeight: '700', marginBottom: 22 },
+  welcomeBtn: { backgroundColor: C.teal, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  welcomeBtnText: { color: C.white, fontSize: 16, fontWeight: '700' },
 });
