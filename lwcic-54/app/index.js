@@ -1242,6 +1242,54 @@ function WelcomeScreen({ firstName, onContinue, busy }) {
   );
 }
 
+// ─── Push Permission Pre-Prompt Screen ──────────────────────────────────────
+// Block 1b.5b — One-time opt-in for prayer alarm notifications.
+// Gated by members.push_permission_asked_at. Either button stamps the
+// timestamp; "yes" will trigger native iOS permission (in 1b.5c), "not
+// right now" routes to Home where Profile can re-enable later (in 1b.5d).
+function PushPromptScreen({ onRespond, busy }) {
+  return (
+    <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
+      <ScrollView contentContainerStyle={s.pushScroll}>
+        <View style={s.pushCard}>
+          <Text style={s.pushHeading}>🔔 Get Prayer Alerts</Text>
+
+          <Text style={s.pushBody}>
+            We only send notifications for one reason: when Pastor Lisa
+            sounds the alarm to pray. Stay connected to the body.
+          </Text>
+
+          <View style={s.pushVerseBox}>
+            <Text style={s.pushVerse}>
+              "For where two or three are gathered together in my name,
+              there am I in the midst of them."
+            </Text>
+            <Text style={s.pushVerseRef}>— Matthew 18:20 (KJV)</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[s.pushBtnYes, busy && { opacity: 0.6 }]}
+            onPress={() => onRespond(true)}
+            disabled={busy}
+          >
+            {busy
+              ? <ActivityIndicator color={C.white} />
+              : <Text style={s.pushBtnYesText}>Yes, notify me</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={s.pushBtnNo}
+            onPress={() => onRespond(false)}
+            disabled={busy}
+          >
+            <Text style={s.pushBtnNoText}>Not right now</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -1250,6 +1298,11 @@ export default function App() {
   // Block 1b.4: member row resolved after OTP verify
   const [member, setMember] = useState(null);
   const [memberLoading, setMemberLoading] = useState(false);
+  // Block 1b.5a / 1b.5b — Busy flags for the two pre-Home gate screens.
+  // CRITICAL: these useState calls MUST live above any conditional return
+  // in App() — React's Rules of Hooks. Do not move them below the gates.
+  const [welcomeBusy, setWelcomeBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
 
   // Block 1b.4: called after LoginScreen verifies OTP successfully
   const handleLoginSuccess = async (loginData) => {
@@ -1292,7 +1345,6 @@ export default function App() {
   };
 
   // Block 1b.5a — Welcome gate: one-time pastoral message for new members
-  const [welcomeBusy, setWelcomeBusy] = useState(false);
   const handleWelcomeContinue = async () => {
     if (!member?.id) return;
     setWelcomeBusy(true);
@@ -1319,6 +1371,36 @@ export default function App() {
         firstName={member.first_name || user?.firstName}
         onContinue={handleWelcomeContinue}
         busy={welcomeBusy}
+      />
+    );
+  }
+
+  // Block 1b.5b — Push permission pre-prompt: ask once after Welcome.
+  // Handler only; hook lives at top of App() above all conditional returns.
+  const handlePushPromptResponse = async (yes) => {
+    if (!member?.id) return;
+    setPushBusy(true);
+    const nowIso = new Date().toISOString();
+    const { error: pErr } = await supabase
+      .from('members')
+      .update({ push_permission_asked_at: nowIso })
+      .eq('id', member.id);
+    if (pErr) {
+      console.log('[1b.5b] push_permission_asked_at update error:', pErr?.message || pErr);
+      // Soft-fail: stamp locally so user moves on; we'll retry on next launch.
+    }
+    // Block 1b.5c will hook in here on yes=true to call
+    // Notifications.requestPermissionsAsync() and capture the push token.
+    setMember({ ...member, push_permission_asked_at: nowIso });
+    setPushBusy(false);
+  };
+
+  // Block 1b.5b — Show push pre-prompt after Welcome, before Home.
+  if (member && member.welcomed_at && !member.push_permission_asked_at) {
+    return (
+      <PushPromptScreen
+        onRespond={handlePushPromptResponse}
+        busy={pushBusy}
       />
     );
   }
@@ -1505,4 +1587,17 @@ const s = StyleSheet.create({
   welcomeSignature: { fontSize: 15, color: C.navy, fontWeight: '700', marginBottom: 22 },
   welcomeBtn: { backgroundColor: C.teal, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   welcomeBtnText: { color: C.white, fontSize: 16, fontWeight: '700' },
+
+  // Push pre-prompt (Block 1b.5b)
+  pushScroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  pushCard: { backgroundColor: C.white, borderRadius: 16, padding: 24 },
+  pushHeading: { fontSize: 22, fontWeight: '800', color: C.navy, marginBottom: 16, textAlign: 'center' },
+  pushBody: { fontSize: 16, color: C.dark, lineHeight: 24, marginBottom: 18, textAlign: 'center' },
+  pushVerseBox: { backgroundColor: '#f7faff', borderLeftWidth: 4, borderLeftColor: C.gold, padding: 14, borderRadius: 6, marginBottom: 24 },
+  pushVerse: { fontSize: 15, fontStyle: 'italic', color: C.dark, lineHeight: 22 },
+  pushVerseRef: { fontSize: 13, color: C.navy, fontWeight: '700', marginTop: 8, textAlign: 'right' },
+  pushBtnYes: { backgroundColor: C.teal, paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginBottom: 14 },
+  pushBtnYesText: { color: C.white, fontSize: 16, fontWeight: '700' },
+  pushBtnNo: { paddingVertical: 10, alignItems: 'center' },
+  pushBtnNoText: { color: C.gray, fontSize: 14, fontWeight: '500' },
 });
