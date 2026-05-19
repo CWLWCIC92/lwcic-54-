@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView, Platform, FlatList, Switch
 } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
+import * as Notifications from 'expo-notifications';
 
 const supabase = createClient(
   'https://ldjynhvueuyjjjlkkyff.supabase.co',
@@ -1378,9 +1379,11 @@ export default function App() {
   // Block 1b.5b — Push permission pre-prompt: ask once after Welcome.
   // Handler only; hook lives at top of App() above all conditional returns.
   const handlePushPromptResponse = async (yes) => {
-    if (!member?.id) return;
+    if (!member) return;
     setPushBusy(true);
     const nowIso = new Date().toISOString();
+
+    // Always stamp push_permission_asked_at (both yes and no answer counts)
     const { error: pErr } = await supabase
       .from('members')
       .update({ push_permission_asked_at: nowIso })
@@ -1389,11 +1392,70 @@ export default function App() {
       console.log('[1b.5b] push_permission_asked_at update error:', pErr?.message || pErr);
       // Soft-fail: stamp locally so user moves on; we'll retry on next launch.
     }
-    // Block 1b.5c will hook in here on yes=true to call
-    // Notifications.requestPermissionsAsync() and capture the push token.
     setMember({ ...member, push_permission_asked_at: nowIso });
+
+    // Block 1b.5c — If user said yes, request OS permission and capture push token.
+    if (yes === true) {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          // Tone 3 — warmly pastoral fallback when iOS denies
+          Alert.alert(
+            "Notifications are off.",
+            "Your iPhone has notifications turned off for LWCIC. To receive prayer alerts, open iPhone Settings → Notifications → LWCIC and turn them on.",
+            [{ text: 'OK' }]
+          );
+          console.log('[1b.5c] push permission denied at OS level');
+        } else {
+          // Permission granted — capture the Expo push token
+          const tokenResult = await Notifications.getExpoPushTokenAsync();
+          const expoToken = tokenResult?.data;
+          if (expoToken) {
+            console.log('[1b.5c] captured Expo push token:', expoToken.substring(0, 30) + '...');
+            const { error: tokErr } = await supabase
+              .from('push_tokens')
+              .insert({
+                member_id: member.id,
+                token: expoToken,
+                platform: Platform.OS,
+                device_id: null,
+              });
+            if (tokErr) {
+              // Unique violation on token (duplicate from reinstall) is harmless — ignore code 23505
+              if (tokErr.code !== '23505') {
+                console.log('[1b.5c] push_tokens insert error:', tokErr?.message || tokErr);
+              } else {
+                console.log('[1b.5c] token already registered (duplicate insert), ok');
+              }
+            } else {
+              console.log('[1b.5c] push_tokens insert ok');
+            }
+          } else {
+            console.log('[1b.5c] getExpoPushTokenAsync returned no data');
+          }
+        }
+    } catch (e) {
+      // Simulator typically throws here — log gracefully, don't block user.
+      console.log('[1b.5c] push token capture failed (expected on Simulator):', e?.message || e);
+    }
+    } else {
+      // Block 1b.5c — "Not right now" pastoral message
+      Alert.alert(
+        "That's okay.",
+        "To open this door, you can turn on prayer alerts anytime — just open your iPhone Settings → Notifications → LWCIC.\n\n\"Casting all your care upon him; for he careth for you.\"\n— 1 Peter 5:7 (KJV)",
+        [{ text: 'OK' }]
+      );
+      console.log('[1b.5c] not-right-now pastoral message shown');
+    }
+
     setPushBusy(false);
-  };
+    };
 
   // Block 1b.5b — Show push pre-prompt after Welcome, before Home.
   if (member && member.welcomed_at && !member.push_permission_asked_at) {
