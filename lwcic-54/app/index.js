@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform, FlatList, Switch
+  KeyboardAvoidingView, Platform, FlatList, Switch,
+  AppState, Linking
 } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
@@ -742,8 +743,22 @@ function Row({ label, value }) {
   );
 }
 
+function NavRow({ label, value, onPress }) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
+      <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 }]}>
+        <Text style={[s.cardBody, { fontWeight: '600' }]}>{label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {value ? <Text style={[s.cardBody, { color: C.gray, marginRight: 8 }]}>{value}</Text> : null}
+          <Text style={{ fontSize: 20, color: C.gray }}>›</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ----- Profile Screen -----------------------------------------------
-function ProfileScreen({ onLogout, user, member, memberLoading }) {
+function ProfileScreen({ onLogout, user, member, memberLoading, onNavigate }) {
   const [prayers, setPrayers] = useState([]);
   const [loading, setLoading] = useState(true);
   // Block 1b.4: read profile from the resolved member row (prop), not from
@@ -795,6 +810,10 @@ function ProfileScreen({ onLogout, user, member, memberLoading }) {
           <Row label="Status" value={profile?.status || 'Member'} />
           <Row label="Member Since" value={profile?.join_date ? new Date(profile.join_date + 'T12:00').getFullYear().toString() : '—'} />
         </View>
+        <Text style={[s.sectionTitle, { marginTop: 20 }]}>Settings</Text>
+        <View style={s.card}>
+          <NavRow label="Notification Preferences" onPress={() => onNavigate && onNavigate('notifications')} />
+        </View>
         <Text style={[s.sectionTitle, { marginTop: 20 }]}>My Prayer Requests</Text>
         {loading ? <ActivityIndicator color={C.teal} /> : prayers.length === 0 ? (
           <View style={s.card}>
@@ -814,6 +833,143 @@ function ProfileScreen({ onLogout, user, member, memberLoading }) {
         <TouchableOpacity style={[s.btn, { backgroundColor: '#c62828', marginTop: 24 }]} onPress={onLogout}>
           <Text style={s.btnText}>Sign Out</Text>
         </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+
+// ─── Notifications Screen (Block 1b.5d) ─────────────────────────────────
+function NotificationsScreen({ onNavigate, member }) {
+  const [osGranted, setOsGranted] = useState(false);
+  const [hasActiveToken, setHasActiveToken] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  // Re-check OS permission + active token on mount and when app returns to foreground
+  const refreshState = async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setOsGranted(status === 'granted');
+
+      if (member?.id) {
+        const { data, error } = await supabase
+          .from('push_tokens')
+          .select('id')
+          .eq('member_id', member.id)
+          .is('revoked_at', null)
+          .limit(1);
+        if (!error) setHasActiveToken((data || []).length > 0);
+      }
+    } catch (e) {
+      console.log('[1b.5d] refreshState error:', e?.message || e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshState();
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') refreshState();
+    });
+    return () => sub.remove();
+  }, [member?.id]);
+
+  const handleToggle = async (newValue) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (newValue) {
+        // Toggle ON: capture token, INSERT (or no-op on duplicate)
+        try {
+          const tokenResult = await Notifications.getExpoPushTokenAsync();
+          const token = tokenResult?.data;
+          if (token && member?.id) {
+            const { error } = await supabase
+              .from('push_tokens')
+              .insert({ member_id: member.id, token, platform: Platform.OS });
+            if (error && error.code !== '23505') {
+              console.log('[1b.5d] insert error:', error.message);
+            } else {
+              setHasActiveToken(true);
+              console.log('[1b.5d] token captured + saved');
+            }
+          }
+        } catch (e) {
+          console.log('[1b.5d] token capture failed (expected on Simulator):', e?.message || e);
+        }
+      } else {
+        // Toggle OFF: stamp revoked_at on all active tokens for this member
+        const { error } = await supabase
+          .from('push_tokens')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('member_id', member.id)
+          .is('revoked_at', null);
+        if (error) {
+          console.log('[1b.5d] revoke error:', error.message);
+        } else {
+          setHasActiveToken(false);
+          console.log('[1b.5d] tokens revoked');
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
+        <View style={{ padding: 20, paddingTop: 50 }}>
+          <ActivityIndicator color={C.teal} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 50, backgroundColor: '#000' }}>
+        <TouchableOpacity onPress={() => onNavigate('profile')} style={{ paddingRight: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 24 }}>‹</Text>
+        </TouchableOpacity>
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 36 }}>
+          Notifications
+        </Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {!osGranted && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[s.cardBody, { color: C.gray, marginBottom: 12 }]}>
+              Notifications are disabled. You can modify your notification preferences in iOS Settings.
+            </Text>
+            <TouchableOpacity
+              style={[s.btn, { backgroundColor: '#e5e5ea' }]}
+              onPress={() => Linking.openSettings()}
+            >
+              <Text style={[s.btnText, { color: '#000' }]}>Go to Settings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={s.card}>
+          <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.cardBody, { fontWeight: '600' }]}>Prayer Alerts</Text>
+              <Text style={[s.cardBody, { color: C.gray, fontSize: 13, marginTop: 2 }]}>
+                Receive notifications when Pastor Lisa sounds the alarm to pray.
+              </Text>
+            </View>
+            <Switch
+              value={hasActiveToken}
+              onValueChange={handleToggle}
+              disabled={!osGranted || busy}
+              trackColor={{ false: '#e5e5ea', true: C.teal }}
+            />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1474,7 +1630,8 @@ export default function App() {
       case 'give': return <GiveScreen member={member} setMember={setMember} />;
       case 'bible': return <BibleScreen user={user} member={member} />;
       case 'events': return <EventsScreen />;
-      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} />;
+      case 'notifications': return <NotificationsScreen onNavigate={setScreen} member={member} />;
+      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} onNavigate={setScreen} />;
       default: return <HomeScreen onNavigate={setScreen} />;
     }
   };
