@@ -48,3 +48,6 @@ app-example
 *-credentials*.json
 *-gsa*.json
 .backup-graveyard/
+
+# Safety backups taken before patch scripts
+app/index.js.backup-*
