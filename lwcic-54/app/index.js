@@ -5,7 +5,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform, FlatList, Switch,
-  AppState, Linking
+  AppState, Linking, Pressable
 } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
@@ -48,6 +48,19 @@ async function resolveMember({ authUser, firstName, lastName, phone }) {
   try {
     if (!authUser?.id) {
       return { member: null, error: new Error('Missing authUser') };
+    }
+    // Block 1b.9b: reviewer/staff path — no phone provided.
+    // Look up an existing member by auth_user_id (must be pre-populated).
+    // Strict: error if not found — never INSERT in this path.
+    if (!phone) {
+      const { data: byAuth, error: byAuthErr } = await supabase
+        .from('members')
+        .select('*')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+      if (byAuthErr) return { member: null, error: byAuthErr };
+      if (byAuth) return { member: byAuth, error: null };
+      return { member: null, error: new Error('No member row for this account. Contact pastor.') };
     }
     // Normalize: last 10 digits of E.164 phone (matches DB generated column)
     const phoneNorm = (phone || '').replace(/\D/g, '').slice(-10);
@@ -108,12 +121,15 @@ async function resolveMember({ authUser, firstName, lastName, phone }) {
 // Block 1b.3 — Phone OTP sign-in (three-state state machine)
 // State flow: enter-info -> enter-code -> (onLogin)
 function LoginScreen({ onLogin }) {
-  const [stage, setStage] = useState('enter-info'); // 'enter-info' | 'enter-code'
+  const [stage, setStage] = useState('enter-info'); // 'enter-info' | 'enter-code' | 'reviewer-login'
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneDisplay, setPhoneDisplay] = useState(''); // '(412) 932-4646'
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  // Block 1b.9b: hidden reviewer email/password path
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerPassword, setReviewerPassword] = useState('');
 
   // Format raw digits as (XXX) XXX-XXXX while typing
   const formatPhone = (raw) => {
@@ -193,6 +209,35 @@ function LoginScreen({ onLogin }) {
     }
   };
 
+  // Block 1b.9b: hidden reviewer email/password sign-in (long-press logo to reveal)
+  const handleReviewerSignIn = async () => {
+    if (!reviewerEmail.trim() || !reviewerPassword) {
+      Alert.alert('Missing info', 'Please enter email and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: reviewerEmail.trim(),
+        password: reviewerPassword,
+      });
+      if (error) {
+        Alert.alert('Sign in failed', error.message || 'Please check credentials.');
+        return;
+      }
+      onLogin({
+        authUser: data?.user || null,
+        firstName: '',
+        lastName: '',
+        phone: null,
+      });
+    } catch (e) {
+      Alert.alert('Network error', 'Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResend = async () => {
     setCode('');
     setStage('enter-info');
@@ -201,7 +246,12 @@ function LoginScreen({ onLogin }) {
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
-        <Text style={s.logoText}>Living Water</Text>
+        <Pressable
+          onLongPress={() => setStage('reviewer-login')}
+          delayLongPress={5000}
+        >
+          <Text style={s.logoText}>Living Water</Text>
+        </Pressable>
         <Text style={s.logoSub}>Church In Christ</Text>
 
         <View style={s.loginCard}>
@@ -243,6 +293,50 @@ function LoginScreen({ onLogin }) {
               {/* TEMP: demo fallback retained until Block 1b.6 lands. Remove then. */}
               <TouchableOpacity onPress={() => onLogin(null)}>
                 <Text style={s.demoText}>Continue as Guest (Demo)</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {stage === 'reviewer-login' && (
+            <>
+              <Text style={s.loginTitle}>Staff Sign-In</Text>
+              <Text style={s.subInput}>For app reviewers and staff.</Text>
+              <TextInput
+                style={s.input}
+                placeholder="Email"
+                placeholderTextColor={C.gray}
+                value={reviewerEmail}
+                onChangeText={setReviewerEmail}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+              />
+              <TextInput
+                style={s.input}
+                placeholder="Password"
+                placeholderTextColor={C.gray}
+                value={reviewerPassword}
+                onChangeText={setReviewerPassword}
+                secureTextEntry={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={s.btn}
+                onPress={handleReviewerSignIn}
+                disabled={loading}
+              >
+                {loading
+                  ? <ActivityIndicator color={C.white} />
+                  : <Text style={s.btnText}>Sign In</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStage('enter-info')}
+                style={{ marginTop: 16 }}
+              >
+                <Text style={{ color: C.teal, textAlign: 'center', fontSize: 14 }}>
+                  Back to phone sign-in
+                </Text>
               </TouchableOpacity>
             </>
           )}
