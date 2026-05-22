@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "org.livingwatercic.app",
       "infoPlist": {
+        "CFBundleDisplayName": "LWCIC",
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app uses the camera to scan QR codes and upload profile photos.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to upload profile photos.",
