@@ -933,84 +933,25 @@ function ProfileScreen({ onLogout, user, member, memberLoading, onNavigate }) {
 }
 
 
-// ─── Notifications Screen (Block 1b.5d) ─────────────────────────────────
+// ---- Notifications Screen (Block 1b.5d - informational, iOS-managed) ----
 function NotificationsScreen({ onNavigate, member }) {
   const [osGranted, setOsGranted] = useState(false);
-  const [hasActiveToken, setHasActiveToken] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-
-  // Re-check OS permission + active token on mount and when app returns to foreground
-  const refreshState = async () => {
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
-      setOsGranted(status === 'granted');
-
-      if (member?.id) {
-        const { data, error } = await supabase
-          .from('push_tokens')
-          .select('id')
-          .eq('member_id', member.id)
-          .is('revoked_at', null)
-          .limit(1);
-        if (!error) setHasActiveToken((data || []).length > 0);
-      }
-    } catch (e) {
-      console.log('[1b.5d] refreshState error:', e?.message || e);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    refreshState();
-    const sub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') refreshState();
-    });
-    return () => sub.remove();
-  }, [member?.id]);
-
-  const handleToggle = async (newValue) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      if (newValue) {
-        // Toggle ON: capture token, INSERT (or no-op on duplicate)
-        try {
-          const tokenResult = await Notifications.getExpoPushTokenAsync();
-          const token = tokenResult?.data;
-          if (token && member?.id) {
-            const { error } = await supabase
-              .from('push_tokens')
-              .insert({ member_id: member.id, token, platform: Platform.OS });
-            if (error && error.code !== '23505') {
-              console.log('[1b.5d] insert error:', error.message);
-            } else {
-              setHasActiveToken(true);
-              console.log('[1b.5d] token captured + saved');
-            }
-          }
-        } catch (e) {
-          console.log('[1b.5d] token capture failed (expected on Simulator):', e?.message || e);
-        }
-      } else {
-        // Toggle OFF: stamp revoked_at on all active tokens for this member
-        const { error } = await supabase
-          .from('push_tokens')
-          .update({ revoked_at: new Date().toISOString() })
-          .eq('member_id', member.id)
-          .is('revoked_at', null);
-        if (error) {
-          console.log('[1b.5d] revoke error:', error.message);
-        } else {
-          setHasActiveToken(false);
-          console.log('[1b.5d] tokens revoked');
-        }
+    let mounted = true;
+    (async () => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (mounted) setOsGranted(status === 'granted');
+      } catch (e) {
+        console.log('[1b.5d] permission check error:', e?.message || e);
+      } finally {
+        if (mounted) setLoading(false);
       }
-    } finally {
-      setBusy(false);
-    }
-  };
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   if (loading) {
     return (
@@ -1025,8 +966,8 @@ function NotificationsScreen({ onNavigate, member }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f5f7' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 50, backgroundColor: '#000' }}>
-        <TouchableOpacity onPress={() => onNavigate('profile')} style={{ paddingRight: 12 }}>
-          <Text style={{ color: '#fff', fontSize: 24 }}>‹</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={{ paddingRight: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 24 }}>{'<'}</Text>
         </TouchableOpacity>
         <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center', marginRight: 36 }}>
           Notifications
@@ -1034,40 +975,31 @@ function NotificationsScreen({ onNavigate, member }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {!osGranted && (
-          <View style={{ marginBottom: 16 }}>
-            <Text style={[s.cardBody, { color: C.gray, marginBottom: 12 }]}>
-              Notifications are disabled. You can modify your notification preferences in iOS Settings.
-            </Text>
-            <TouchableOpacity
-              style={[s.btn, { backgroundColor: '#e5e5ea' }]}
-              onPress={() => Linking.openSettings()}
-            >
-              <Text style={[s.btnText, { color: '#000' }]}>Go to Settings</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         <View style={s.card}>
-          <View style={[s.row, { justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.cardBody, { fontWeight: '600' }]}>Prayer Alerts</Text>
-              <Text style={[s.cardBody, { color: C.gray, fontSize: 13, marginTop: 2 }]}>
-                Receive notifications when Pastor Lisa sounds the alarm to pray.
-              </Text>
-            </View>
-            <Switch
-              value={hasActiveToken}
-              onValueChange={handleToggle}
-              disabled={!osGranted || busy}
-              trackColor={{ false: '#e5e5ea', true: C.teal }}
-            />
-          </View>
+          <Text style={[s.cardBody, { fontWeight: '600', fontSize: 16, marginBottom: 8 }]}>Prayer Alerts</Text>
+          <Text style={[s.cardBody, { color: C.gray, marginBottom: 12 }]}>
+            When Pastor Lisa sounds the alarm to pray, you'll receive a notification on your phone.
+          </Text>
+          <Text style={[s.cardBody, { color: C.gray, marginBottom: 16 }]}>
+            {osGranted
+              ? 'To turn off notifications, open iPhone Settings, then Notifications, then LWCIC.'
+              : 'Notifications are currently off. Open iPhone Settings, then Notifications, then LWCIC to turn them on.'}
+          </Text>
+          <TouchableOpacity
+            style={[s.btn, { backgroundColor: '#e5e5ea' }]}
+            onPress={() => Linking.openSettings()}
+          >
+            <Text style={[s.btnText, { color: '#000' }]}>Open iPhone Settings</Text>
+          </TouchableOpacity>
+          <Text style={[s.cardBody, { color: C.gray, fontSize: 13, marginTop: 16, fontStyle: 'italic', textAlign: 'center' }]}>
+            "Pray without ceasing." -- 1 Thessalonians 5:17 (KJV)
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 
 // ─── Bottom Nav ───────────────────────────────────────────────────────────────
 const NAV = [
