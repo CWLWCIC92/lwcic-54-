@@ -5,7 +5,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, SafeAreaView, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform, FlatList, Switch,
-  AppState, Linking, Pressable
+  AppState, Linking, Pressable, Image
 } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
@@ -246,6 +246,7 @@ function LoginScreen({ onLogin }) {
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
+        <Image source={require('../assets/images/lwcic-cross-logo.png')} style={s.logoImage} resizeMode="contain" />
         <Pressable
           onLongPress={() => setStage('reviewer-login')}
           delayLongPress={5000}
@@ -1679,6 +1680,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start' },
 
   // Login
+  logoImage: { width: 160, height: 160, marginBottom: 16, alignSelf: 'center' },
   logoText: { fontSize: 36, fontWeight: '900', color: C.white, letterSpacing: 1 },
   logoSub: { fontSize: 16, color: C.tealL, marginBottom: 40 },
   loginCard: { backgroundColor: C.white, borderRadius: 16, padding: 24, width: '85%' },
