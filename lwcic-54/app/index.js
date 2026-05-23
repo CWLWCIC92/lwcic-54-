@@ -404,6 +404,9 @@ function HomeScreen({ onNavigate }) {
       <View style={s.header}>
         <Text style={s.headerTitle}>Living Water CIC</Text>
         <Text style={s.headerSub}>McKees Rocks, PA</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => onNavigate && onNavigate('bible')}
                 style={{backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12, padding:14, marginTop:10, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}
@@ -446,7 +449,7 @@ function HomeScreen({ onNavigate }) {
 }
 
 // ─── Watch Screen ─────────────────────────────────────────────────────────────
-function WatchScreen() {
+function WatchScreen({ onNavigate }) {
   const [sermons, setSermons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(null);
@@ -470,6 +473,9 @@ function WatchScreen() {
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Sermons</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
       </View>
       {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : (
         <FlatList
@@ -539,7 +545,7 @@ function giveScripture() {
 }
 
 // ─── Give Screen ──────────────────────────────────────────────────────────────
-function GiveScreen({ member, setMember }) {
+function GiveScreen({ member, setMember, onNavigate }) {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
@@ -653,6 +659,9 @@ function GiveScreen({ member, setMember }) {
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Give</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex} keyboardVerticalOffset={80}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
@@ -764,7 +773,7 @@ function GiveScreen({ member, setMember }) {
   );
 }
 
-function EventsScreen() {
+function EventsScreen({ onNavigate }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -799,6 +808,9 @@ function EventsScreen() {
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Events</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
       </View>
       {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : (
         <FlatList
@@ -1026,7 +1038,7 @@ const ROMANS_ROAD = [
 
 
 
-function BibleScreen({ user, member }) {
+function BibleScreen({ user, member, onNavigate }) {
   const [openSection, setOpenSection] = React.useState(null);
   const [romansStep, setRomansStep] = React.useState(0);
   const [romansComplete, setRomansComplete] = React.useState(false);
@@ -1137,6 +1149,9 @@ function BibleScreen({ user, member }) {
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Bible & Prayer</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
       </View>
       <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
 
@@ -1379,11 +1394,14 @@ function BottomNav({ active, onNav }) {
 //   3. The Lord's Prayer (Matthew 6:9-13 KJV)
 //   4. Sound the Alarm archive (placeholder until Phase D)
 //   5. My Prayer Requests (moved from Profile in 1c.6)
-function PrayerScreen({ user, member }) {
+function PrayerScreen({ user, member, onNavigate }) {
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
         <Text style={s.headerTitle}>Prayer</Text>
+        <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
+          <Text style={{ fontSize: 22 }}>👤</Text>
+        </TouchableOpacity>
       </View>
       <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
 
@@ -1706,11 +1724,11 @@ export default function App() {
   const renderScreen = () => {
     switch (screen) {
       case 'home': return <HomeScreen onNavigate={setScreen} />;
-      case 'watch': return <WatchScreen />;
-      case 'give': return <GiveScreen member={member} setMember={setMember} />;
-      case 'bible': return <BibleScreen user={user} member={member} />;
-      case 'prayer': return <PrayerScreen user={user} member={member} />;
-      case 'events': return <EventsScreen />;
+      case 'watch': return <WatchScreen onNavigate={setScreen} />;
+      case 'give': return <GiveScreen member={member} setMember={setMember} onNavigate={setScreen} />;
+      case 'bible': return <BibleScreen user={user} member={member} onNavigate={setScreen} />;
+      case 'prayer': return <PrayerScreen user={user} member={member} onNavigate={setScreen} />;
+      case 'events': return <EventsScreen onNavigate={setScreen} />;
       case 'notifications': return <NotificationsScreen onNavigate={setScreen} member={member} />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} onNavigate={setScreen} />;
       default: return <HomeScreen onNavigate={setScreen} />;
@@ -1746,6 +1764,7 @@ const s = StyleSheet.create({
 
   // Header
   header: { backgroundColor: C.navy, paddingTop: 16, paddingBottom: 16, paddingHorizontal: 20, alignItems: 'center' },
+  headerSilhouette: { position: 'absolute', right: 16, top: 16, padding: 4 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.white },
   headerSub: { fontSize: 13, color: C.tealL, marginTop: 2 },
 
