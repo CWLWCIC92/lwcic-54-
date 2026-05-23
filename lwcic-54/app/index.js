@@ -1006,10 +1006,10 @@ function NotificationsScreen({ onNavigate, member }) {
 const NAV = [
   { key: 'home', label: 'Home', icon: '🏠' },
   { key: 'watch', label: 'Watch', icon: '▶️' },
-  { key: 'give', label: 'Give', icon: '🙏' },
+  { key: 'give', label: 'Give', icon: '❤️' },
   { key: 'bible', label: 'Bible', icon: '📖' },
   { key: 'events', label: 'Events', icon: '📅' },
-  { key: 'profile', label: 'Profile', icon: '👤' },
+  { key: 'prayer', label: 'Prayer', icon: '🙏' },
 ];
 
 const ROMANS_ROAD = [
@@ -1709,6 +1709,7 @@ export default function App() {
       case 'watch': return <WatchScreen />;
       case 'give': return <GiveScreen member={member} setMember={setMember} />;
       case 'bible': return <BibleScreen user={user} member={member} />;
+      case 'prayer': return <PrayerScreen user={user} member={member} />;
       case 'events': return <EventsScreen />;
       case 'notifications': return <NotificationsScreen onNavigate={setScreen} member={member} />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} onNavigate={setScreen} />;
