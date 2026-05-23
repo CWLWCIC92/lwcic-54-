@@ -1371,6 +1371,59 @@ function BottomNav({ active, onNav }) {
   );
 }
 
+// ───── Prayer Screen ──────────────────────────────────────────────────
+// Block 1c.1 — Prayer tab scaffold
+// Sections (top to bottom):
+//   1. Prayer Scripture card (Philippians 4:6 — Phase G placeholder)
+//   2. Submit a Prayer Request (moved from Bible in 1c.4)
+//   3. The Lord's Prayer (Matthew 6:9-13 KJV)
+//   4. Sound the Alarm archive (placeholder until Phase D)
+//   5. My Prayer Requests (moved from Profile in 1c.6)
+function PrayerScreen({ user, member }) {
+  return (
+    <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Prayer</Text>
+      </View>
+      <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
+
+        {/* 1. Prayer Scripture — gold-bar treatment (Phase G placeholder) */}
+        <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+          <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
+            "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God."
+          </Text>
+          <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Philippians 4:6 KJV</Text>
+        </View>
+
+        {/* 2. Submit a Prayer Request — placeholder, populated in 1c.4 */}
+        <View style={[s.card, { marginBottom: 12 }]}>
+          <Text style={s.cardTitle}>Submit a Prayer Request</Text>
+          <Text style={s.cardBody}>Coming in 1c.4</Text>
+        </View>
+
+        {/* 3. The Lord's Prayer — placeholder, populated in 1c.5 */}
+        <View style={[s.card, { marginBottom: 12 }]}>
+          <Text style={s.cardTitle}>The Lord's Prayer</Text>
+          <Text style={s.cardBody}>Coming in 1c.5</Text>
+        </View>
+
+        {/* 4. Sound the Alarm archive — placeholder until Phase D */}
+        <View style={[s.card, { marginBottom: 12 }]}>
+          <Text style={s.cardTitle}>Sound the Alarm</Text>
+          <Text style={s.cardBody}>No prayer alerts yet.</Text>
+        </View>
+
+        {/* 5. My Prayer Requests — placeholder, populated in 1c.6 */}
+        <View style={[s.card, { marginBottom: 12 }]}>
+          <Text style={s.cardTitle}>My Prayer Requests</Text>
+          <Text style={s.cardBody}>Coming in 1c.6</Text>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── Welcome Screen ──────────────────────────────────────────────────────────
 // Block 1b.5a — One-time pastoral welcome after first OTP verify.
 // Gated by members.welcomed_at. Tapping Continue stamps the timestamp,
