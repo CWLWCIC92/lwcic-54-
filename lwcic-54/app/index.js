@@ -1339,6 +1339,8 @@ function PrayerScreen({ user, member, onNavigate }) {
   // Block 1c.4 — Submit Prayer Request state (moved from Bible)
   const [pRequest, setPRequest] = React.useState('');
   const [pAnon, setPAnon] = React.useState(false);
+  // Block 1c.5 — The Lord's Prayer collapse state
+  const [lordsPrayerOpen, setLordsPrayerOpen] = React.useState(false);
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
@@ -1400,11 +1402,29 @@ function PrayerScreen({ user, member, onNavigate }) {
           </View>
         </View>
 
-        {/* 3. The Lord's Prayer — placeholder, populated in 1c.5 */}
-        <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={s.cardTitle}>The Lord's Prayer</Text>
-          <Text style={s.cardBody}>Coming in 1c.5</Text>
-        </View>
+        {/* 3. The Lord's Prayer — Block 1c.5, collapsible (tap to expand) */}
+        <TouchableOpacity
+          style={[s.card, { marginBottom: lordsPrayerOpen ? 8 : 12 }]}
+          onPress={() => setLordsPrayerOpen(!lordsPrayerOpen)}
+          activeOpacity={0.7}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={s.cardTitle}>The Lord's Prayer</Text>
+            <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>{lordsPrayerOpen ? '▲' : '▼'}</Text>
+          </View>
+        </TouchableOpacity>
+
+        {lordsPrayerOpen && (
+          <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Our Father which art in heaven,{'\n'}Hallowed be thy name.</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Thy kingdom come.{'\n'}Thy will be done in earth,{'\n'}as it is in heaven.</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Give us this day our daily bread.</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>And forgive us our debts,{'\n'}as we forgive our debtors.</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>And lead us not into temptation,{'\n'}but deliver us from evil:</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 16 }}>For thine is the kingdom,{'\n'}and the power, and the glory,{'\n'}for ever. Amen.</Text>
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Matthew 6:9-13 KJV</Text>
+          </View>
+        )}
 
         {/* 4. Sound the Alarm archive — placeholder until Phase D */}
         <View style={[s.card, { marginBottom: 12 }]}>
