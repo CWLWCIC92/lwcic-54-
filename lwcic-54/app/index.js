@@ -1051,8 +1051,6 @@ function BibleScreen({ user, member, onNavigate }) {
   const [currentDay, setCurrentDay] = React.useState(1);
   const [progressId, setProgressId] = React.useState(null);
   const [marking, setMarking] = React.useState(false);
-  const [pRequest, setPRequest] = React.useState('');
-  const [pAnon, setPAnon] = React.useState(false);
 
   const SURL = 'https://ldjynhvueuyjjjlkkyff.supabase.co';
   const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI';
@@ -1311,63 +1309,6 @@ function BibleScreen({ user, member, onNavigate }) {
         )}
 
         {/* PRAYER REQUESTS */}
-        <TouchableOpacity style={[s.card, { marginBottom: 8 }]} onPress={() => setOpenSection(openSection === 'prayer' ? null : 'prayer')}>
-          <View style={s.row}>
-            <Text style={{ fontSize: 22, marginRight: 12 }}>🙏</Text>
-            <View style={s.flex}>
-              <Text style={s.cardTitle}>Prayer Requests</Text>
-              <Text style={s.cardBody}>Submit and view prayer requests</Text>
-            </View>
-            <Text style={{ color: C.teal, fontWeight: '700' }}>{openSection === 'prayer' ? '▲' : '▼'}</Text>
-          </View>
-        </TouchableOpacity>
-
-        {openSection === 'prayer' && (
-          <View style={[s.card, { marginBottom: 12 }]}>
-            <View>
-              <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
-              <TextInput
-                style={[s.input, { height: 100, textAlignVertical: 'top' }]}
-                placeholder="Share your prayer request..."
-                placeholderTextColor={C.gray}
-                multiline
-                value={pRequest}
-                onChangeText={setPRequest}
-              />
-              <TouchableOpacity style={s.btn} onPress={async () => {
-                if (!pRequest.trim()) return;
-                try {
-                  await supabase.from('prayer_requests').insert({
-                    member_id: member?.id,
-                    request: pRequest,
-                    status: 'pending',
-                    anonymous: pAnon,
-                  });
-                  setPRequest('');
-                  setPAnon(false);
-                  if (pAnon) {
-                    Alert.alert('🙏 Submitted anonymously', 'Pastor Lisa and Minister C.W. will be praying for you.');
-                  } else {
-                    Alert.alert('🙏 Submitted', 'Pastor Lisa and Minister C.W. will be praying for you!');
-                  }
-                } catch(e) {
-                  Alert.alert('Error', 'Could not submit. Please try again.');
-                }
-              }}>
-                <Text style={s.btnText}>Submit Prayer Request</Text>
-              </TouchableOpacity>
-              <View style={s.anonRow}>
-                <Text style={s.anonLabel}>Submit anonymously</Text>
-                <Switch
-                  value={pAnon}
-                  onValueChange={setPAnon}
-                  trackColor={{ false: '#ddd', true: C.teal }}
-                />
-              </View>
-            </View>
-          </View>
-        )}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -1395,6 +1336,9 @@ function BottomNav({ active, onNav }) {
 //   4. Sound the Alarm archive (placeholder until Phase D)
 //   5. My Prayer Requests (moved from Profile in 1c.6)
 function PrayerScreen({ user, member, onNavigate }) {
+  // Block 1c.4 — Submit Prayer Request state (moved from Bible)
+  const [pRequest, setPRequest] = React.useState('');
+  const [pAnon, setPAnon] = React.useState(false);
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
@@ -1413,10 +1357,47 @@ function PrayerScreen({ user, member, onNavigate }) {
           <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Philippians 4:6 KJV</Text>
         </View>
 
-        {/* 2. Submit a Prayer Request — placeholder, populated in 1c.4 */}
+        {/* 2. Submit a Prayer Request — moved from Bible in Block 1c.4 */}
         <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={s.cardTitle}>Submit a Prayer Request</Text>
-          <Text style={s.cardBody}>Coming in 1c.4</Text>
+          <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
+          <TextInput
+            style={[s.input, { height: 100, textAlignVertical: 'top' }]}
+            placeholder="Share your prayer request..."
+            placeholderTextColor={C.gray}
+            multiline
+            value={pRequest}
+            onChangeText={setPRequest}
+          />
+          <TouchableOpacity style={s.btn} onPress={async () => {
+            if (!pRequest.trim()) return;
+            try {
+              await supabase.from('prayer_requests').insert({
+                member_id: member?.id,
+                request: pRequest,
+                status: 'pending',
+                anonymous: pAnon,
+              });
+              setPRequest('');
+              setPAnon(false);
+              if (pAnon) {
+                Alert.alert('🙏 Submitted anonymously', 'Pastor Lisa and Minister C.W. will be praying for you.');
+              } else {
+                Alert.alert('🙏 Submitted', 'Pastor Lisa and Minister C.W. will be praying for you!');
+              }
+            } catch(e) {
+              Alert.alert('Error', 'Could not submit. Please try again.');
+            }
+          }}>
+            <Text style={s.btnText}>Submit Prayer Request</Text>
+          </TouchableOpacity>
+          <View style={s.anonRow}>
+            <Text style={s.anonLabel}>Submit anonymously</Text>
+            <Switch
+              value={pAnon}
+              onValueChange={setPAnon}
+              trackColor={{ false: '#ddd', true: C.teal }}
+            />
+          </View>
         </View>
 
         {/* 3. The Lord's Prayer — placeholder, populated in 1c.5 */}
