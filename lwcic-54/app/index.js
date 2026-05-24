@@ -407,19 +407,6 @@ function HomeScreen({ onNavigate }) {
         <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
           <Text style={{ fontSize: 22 }}>👤</Text>
         </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => onNavigate && onNavigate('bible')}
-                style={{backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12, padding:14, marginTop:10, flexDirection:'row', alignItems:'center', justifyContent:'space-between'}}
-              >
-                <View style={{flexDirection:'row', alignItems:'center'}}>
-                  <Text style={{fontSize:20, marginRight:10}}>🙏</Text>
-                  <View>
-                    <Text style={{fontSize:14, fontWeight:'700', color:'#fff'}}>Submit a Prayer Request</Text>
-                    <Text style={{fontSize:11, color:'rgba(255,255,255,0.7)'}}>Pastor Baldwin & LWCIC are praying for you</Text>
-                  </View>
-                </View>
-                <Text style={{color:'#fff', fontSize:18}}>›</Text>
-              </TouchableOpacity>
       </View>
       <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
         {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : <>
@@ -1103,7 +1090,7 @@ function BibleScreen({ user, member, onNavigate }) {
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>Bible & Prayer</Text>
+        <Text style={s.headerTitle}>Bible</Text>
         <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
           <Text style={{ fontSize: 22 }}>👤</Text>
         </TouchableOpacity>
