@@ -866,36 +866,9 @@ function NavRow({ label, value, onPress }) {
 
 // ----- Profile Screen -----------------------------------------------
 function ProfileScreen({ onLogout, user, member, memberLoading, onNavigate }) {
-  const [prayers, setPrayers] = useState([]);
-  const [loading, setLoading] = useState(true);
   // Block 1b.4: read profile from the resolved member row (prop), not from
   // a separate email-based lookup. Falls back gracefully while resolving.
   const profile = member;
-
-  useEffect(() => {
-    const loadPrayers = async () => {
-      if (member?.id) {
-        const { data } = await supabase
-          .from('prayer_requests')
-          .select('*')
-          .eq('member_id', member.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        setPrayers(data || []);
-      } else if (member?.email) {
-        // Fallback for legacy rows: match by email if member_id link absent
-        const { data } = await supabase
-          .from('prayer_requests')
-          .select('*')
-          .eq('email', member.email)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        setPrayers(data || []);
-      }
-      setLoading(false);
-    };
-    if (!memberLoading) loadPrayers();
-  }, [member?.id, memberLoading]);
 
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
@@ -921,22 +894,6 @@ function ProfileScreen({ onLogout, user, member, memberLoading, onNavigate }) {
         <View style={s.card}>
           <NavRow label="Notification Preferences" onPress={() => onNavigate && onNavigate('notifications')} />
         </View>
-        <Text style={[s.sectionTitle, { marginTop: 20 }]}>My Prayer Requests</Text>
-        {loading ? <ActivityIndicator color={C.teal} /> : prayers.length === 0 ? (
-          <View style={s.card}>
-            <Text style={[s.cardBody, { textAlign: 'center' }]}>No prayer requests yet.</Text>
-          </View>
-        ) : prayers.map(p => (
-          <View key={p.id} style={s.card}>
-            <View style={[s.row, { justifyContent: 'space-between', marginBottom: 4 }]}>
-              <Text style={s.cardTitle}>{new Date(p.created_at).toLocaleDateString()}</Text>
-              <View style={[s.badge, { backgroundColor: p.status === 'responded' ? C.green : C.gold }]}>
-                <Text style={s.badgeText}>{p.status}</Text>
-              </View>
-            </View>
-            <Text style={s.cardBody}>{p.request}</Text>
-          </View>
-        ))}
         <TouchableOpacity style={[s.btn, { backgroundColor: '#c62828', marginTop: 24 }]} onPress={onLogout}>
           <Text style={s.btnText}>Sign Out</Text>
         </TouchableOpacity>
@@ -1341,6 +1298,33 @@ function PrayerScreen({ user, member, onNavigate }) {
   const [pAnon, setPAnon] = React.useState(false);
   // Block 1c.5 — The Lord's Prayer collapse state
   const [lordsPrayerOpen, setLordsPrayerOpen] = React.useState(false);
+  // Block 1c.6 — My Prayer Requests history (moved from Profile)
+  const [prayers, setPrayers] = React.useState([]);
+  const [prayersLoading, setPrayersLoading] = React.useState(true);
+  React.useEffect(() => {
+    const loadPrayers = async () => {
+      if (member?.id) {
+        const { data } = await supabase
+          .from('prayer_requests')
+          .select('*')
+          .eq('member_id', member.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        setPrayers(data || []);
+      } else if (member?.email) {
+        // Fallback for legacy rows: match by email if member_id link absent
+        const { data } = await supabase
+          .from('prayer_requests')
+          .select('*')
+          .eq('email', member.email)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        setPrayers(data || []);
+      }
+      setPrayersLoading(false);
+    };
+    loadPrayers();
+  }, [member?.id]);
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
@@ -1432,11 +1416,23 @@ function PrayerScreen({ user, member, onNavigate }) {
           <Text style={s.cardBody}>No prayer alerts yet.</Text>
         </View>
 
-        {/* 5. My Prayer Requests — placeholder, populated in 1c.6 */}
-        <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={s.cardTitle}>My Prayer Requests</Text>
-          <Text style={s.cardBody}>Coming in 1c.6</Text>
-        </View>
+        {/* 5. My Prayer Requests — moved from Profile in Block 1c.6 */}
+        <Text style={[s.sectionTitle, { marginTop: 8, marginBottom: 8 }]}>My Prayer Requests</Text>
+        {prayersLoading ? <ActivityIndicator color={C.teal} /> : prayers.length === 0 ? (
+          <View style={[s.card, { marginBottom: 12 }]}>
+            <Text style={[s.cardBody, { textAlign: 'center' }]}>No prayer requests yet.</Text>
+          </View>
+        ) : prayers.map(p => (
+          <View key={p.id} style={[s.card, { marginBottom: 8 }]}>
+            <View style={[s.row, { justifyContent: 'space-between', marginBottom: 4 }]}>
+              <Text style={s.cardTitle}>{new Date(p.created_at).toLocaleDateString()}</Text>
+              <View style={[s.badge, { backgroundColor: p.status === 'responded' ? C.green : C.gold }]}>
+                <Text style={s.badgeText}>{p.status}</Text>
+              </View>
+            </View>
+            <Text style={s.cardBody}>{p.request}</Text>
+          </View>
+        ))}
 
       </ScrollView>
     </SafeAreaView>
