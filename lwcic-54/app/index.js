@@ -1283,6 +1283,7 @@ function PrayerScreen({ user, member, onNavigate }) {
   // Block 1c.4 — Submit Prayer Request state (moved from Bible)
   const [pRequest, setPRequest] = React.useState('');
   const [pAnon, setPAnon] = React.useState(false);
+  const [submitFormOpen, setSubmitFormOpen] = React.useState(false);
   // Block 1c.5 — The Lord's Prayer collapse state
   const [lordsPrayerOpen, setLordsPrayerOpen] = React.useState(false);
   // Block 1c.6 — My Prayer Requests history (moved from Profile)
@@ -1332,7 +1333,19 @@ function PrayerScreen({ user, member, onNavigate }) {
 
         {/* 2. Submit a Prayer Request — moved from Bible in Block 1c.4 */}
         <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
+          <TouchableOpacity
+            onPress={() => setSubmitFormOpen(!submitFormOpen)}
+            style={[s.card, { marginBottom: submitFormOpen ? 8 : 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 20, marginRight: 10 }}>🙏</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: C.navy }}>Submit a Prayer Request</Text>
+            </View>
+            <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>{submitFormOpen ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+          {submitFormOpen && (
+            <>
+              <Text style={s.sectionTitle}>Submit a Prayer Request</Text>
           <TextInput
             style={[s.input, { height: 100, textAlignVertical: 'top' }]}
             placeholder="Share your prayer request..."
@@ -1371,6 +1384,8 @@ function PrayerScreen({ user, member, onNavigate }) {
               trackColor={{ false: '#ddd', true: C.teal }}
             />
           </View>
+            </>
+          )}
         </View>
 
         {/* 3. The Lord's Prayer — Block 1c.5, collapsible (tap to expand) */}
