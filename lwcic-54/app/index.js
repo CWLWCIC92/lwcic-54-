@@ -501,6 +501,56 @@ function WatchScreen({ onNavigate }) {
 // Rotates through 5 KJV verses on tithing/giving. Deterministic by day-of-year
 // so a member sees a consistent verse within a session but variety over time.
 // Luke 6:38 is reserved for the post-gift Thank You screen; not in this rotation.
+// Phase G rotation helper: stable per calendar day, same verse for everyone
+function dayOfYearRotation(poolSize) {
+  if (!poolSize) return 0;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  return dayOfYear % poolSize;
+}
+
+// Phase G: fetch today's verse from a scripture pool with kjv_bible JOIN
+async function fetchTodayScripture(poolTableName) {
+  try {
+    const { count } = await supabase
+      .from(poolTableName)
+      .select('*', { count: 'exact', head: true })
+      .eq('active', true);
+    if (!count) return null;
+
+    const idx = dayOfYearRotation(count);
+
+    const { data: poolRow } = await supabase
+      .from(poolTableName)
+      .select('book, chapter, verse_start, verse_end')
+      .eq('rotation_key', idx)
+      .eq('active', true)
+      .maybeSingle();
+    if (!poolRow) return null;
+
+    const verseEnd = poolRow.verse_end || poolRow.verse_start;
+    const { data: verses } = await supabase
+      .from('kjv_bible')
+      .select('verse, text')
+      .eq('book', poolRow.book)
+      .eq('chapter', poolRow.chapter)
+      .gte('verse', poolRow.verse_start)
+      .lte('verse', verseEnd)
+      .order('verse');
+    if (!verses || verses.length === 0) return null;
+
+    const text = verses.map(v => v.text).join(' ');
+    const ref = poolRow.verse_end && poolRow.verse_end !== poolRow.verse_start
+      ? `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}-${poolRow.verse_end}`
+      : `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}`;
+    return { text, ref };
+  } catch (e) {
+    console.log('[scripture pool] fetch failed:', e.message);
+    return null;
+  }
+}
+
 const TITHING_VERSES = [
   {
     ref: 'Malachi 3:10',
@@ -542,6 +592,13 @@ function GiveScreen({ member, setMember, onNavigate }) {
   // Block 1b.4b: email capture state — pre-populated from member if available
   const [emailDraft, setEmailDraft] = useState(member?.email || '');
   const [emailSaving, setEmailSaving] = useState(false);
+  // Phase G: rotating give scripture from pool (with hardcoded fallback)
+  const [giveScriptureState, setGiveScriptureState] = useState(giveScripture());
+  useEffect(() => {
+    fetchTodayScripture('giving_scripture_pool').then(v => {
+      if (v) setGiveScriptureState(v);
+    });
+  }, []);
 
   // Block 1b.4b: handler for the email step's Continue button
   const handleEmailContinue = async () => {
@@ -685,18 +742,13 @@ function GiveScreen({ member, setMember, onNavigate }) {
               value={note}
               onChangeText={setNote}
             />
-            {(() => {
-              const v = giveScripture();
-              return (
-                <View style={s.scriptureBox}>
-                  <View style={s.scriptureBar} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.scriptureText}>{v.text}</Text>
-                    <Text style={s.scriptureRef}>— {v.ref}</Text>
-                  </View>
-                </View>
-              );
-            })()}
+            <View style={s.scriptureBox}>
+              <View style={s.scriptureBar} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.scriptureText}>{giveScriptureState.text}</Text>
+                <Text style={s.scriptureRef}>— {giveScriptureState.ref}</Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
               onPress={() => {
@@ -1289,6 +1341,16 @@ function PrayerScreen({ user, member, onNavigate }) {
   // Block 1c.6 — My Prayer Requests history (moved from Profile)
   const [prayers, setPrayers] = React.useState([]);
   const [prayersLoading, setPrayersLoading] = React.useState(true);
+  // Phase G: rotating prayer scripture from pool (with hardcoded fallback)
+  const [prayerScripture, setPrayerScripture] = React.useState({
+    text: "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.",
+    ref: "Philippians 4:6"
+  });
+  React.useEffect(() => {
+    fetchTodayScripture('prayer_scripture_pool').then(v => {
+      if (v) setPrayerScripture(v);
+    });
+  }, []);
   React.useEffect(() => {
     const loadPrayers = async () => {
       if (member?.id) {
@@ -1326,9 +1388,9 @@ function PrayerScreen({ user, member, onNavigate }) {
         {/* 1. Prayer Scripture — gold-bar treatment (Phase G placeholder) */}
         <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
           <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
-            "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God."
+            "{prayerScripture.text}"
           </Text>
-          <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Philippians 4:6 KJV</Text>
+          <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {prayerScripture.ref} KJV</Text>
         </View>
 
         {/* 2. Submit a Prayer Request — moved from Bible in Block 1c.4 */}
