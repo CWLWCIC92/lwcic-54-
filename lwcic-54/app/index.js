@@ -373,6 +373,16 @@ function LoginScreen({ onLogin }) {
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 function HomeScreen({ onNavigate }) {
   const [announcements, setAnnouncements] = useState([]);
+  // Phase G: rotating verse of the day from pool (with hardcoded fallback)
+  const [todayScripture, setTodayScripture] = useState({
+    text: "The LORD is my shepherd; I shall not want. He maketh me to lie down in green pastures: he leadeth me beside the still waters. He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake. Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.",
+    ref: "Psalms 23:1-4"
+  });
+  useEffect(() => {
+    fetchTodayScripture('verse_of_the_day_pool').then(v => {
+      if (v) setTodayScripture(v);
+    });
+  }, []);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -410,6 +420,12 @@ function HomeScreen({ onNavigate }) {
       </View>
       <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
         {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : <>
+          <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
+              "{todayScripture.text}"
+            </Text>
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {todayScripture.ref} KJV</Text>
+          </View>
           <Text style={s.sectionTitle}>Announcements</Text>
           {announcements.map(a => (
             <View key={a.id} style={s.card}>
