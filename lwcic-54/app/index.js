@@ -710,6 +710,12 @@ function GiveScreen({ member, setMember, onNavigate }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex} keyboardVerticalOffset={80}>
         <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
           {step === 1 && <>
+            <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+              <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
+                "{giveScriptureState.text}"
+              </Text>
+              <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {giveScriptureState.ref} KJV</Text>
+            </View>
             <Text style={s.sectionTitle}>Select Fund</Text>
             <View style={s.fundRow}>
               {funds.map(f => (
@@ -742,13 +748,6 @@ function GiveScreen({ member, setMember, onNavigate }) {
               value={note}
               onChangeText={setNote}
             />
-            <View style={s.scriptureBox}>
-              <View style={s.scriptureBar} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.scriptureText}>{giveScriptureState.text}</Text>
-                <Text style={s.scriptureRef}>— {giveScriptureState.ref}</Text>
-              </View>
-            </View>
             <TouchableOpacity
               style={[s.btn, { marginTop: 24, opacity: amount ? 1 : 0.5 }]}
               onPress={() => {
