@@ -1366,6 +1366,32 @@ function PrayerScreen({ user, member, onNavigate }) {
       if (v) setPrayerScripture(v);
     });
   }, []);
+
+  // Block 1e.4 — Congregational Prayer collapsible state + fetch
+  const [congPrayerOpen, setCongPrayerOpen] = React.useState(false);
+  const [congPrayer, setCongPrayer] = React.useState(null);
+
+  React.useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('congregational_prayers')
+        .select('week_of, intro, body, closing')
+        .eq('active', true)
+        .order('week_of', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) setCongPrayer(data);
+    })();
+  }, []);
+
+  // Block 1e.4 — Date formatter: "2026-05-24" -> "Sunday, May 24, 2026"
+  const formatSundayDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return `Sunday, ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  };
+
   React.useEffect(() => {
     const loadPrayers = async () => {
       if (member?.id) {
@@ -1486,13 +1512,47 @@ function PrayerScreen({ user, member, onNavigate }) {
           </View>
         )}
 
-        {/* 4. Sound the Alarm archive — placeholder until Phase D */}
+
+          {/* 4. Congregational Prayer — Block 1e.4, collapsible (tap to expand) */}
+          {congPrayer && (
+            <>
+              <TouchableOpacity
+                style={[s.card, { marginBottom: congPrayerOpen ? 8 : 12 }]}
+                onPress={() => setCongPrayerOpen(!congPrayerOpen)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.cardTitle}>Congregational Prayers</Text>
+                    <Text style={{ color: C.gold, fontSize: 13, fontWeight: '600', marginTop: 2 }}>for {formatSundayDate(congPrayer.week_of)}</Text>
+                  </View>
+                  <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>{congPrayerOpen ? '▲' : '▼'}</Text>
+                </View>
+              </TouchableOpacity>
+
+              {congPrayerOpen && (
+                <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+                  {congPrayer.intro && (
+                    <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 12 }}>{congPrayer.intro}</Text>
+                  )}
+                  {congPrayer.body.split('\n').map((line, i) => (
+                    <Text key={i} style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>• {line}</Text>
+                  ))}
+                  {congPrayer.closing && (
+                    <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginTop: 12, fontStyle: 'italic' }}>{congPrayer.closing}</Text>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+
+        {/* 5. Sound the Alarm archive — placeholder until Phase D */}
         <View style={[s.card, { marginBottom: 12 }]}>
           <Text style={s.cardTitle}>Sound the Alarm</Text>
           <Text style={s.cardBody}>No prayer alerts yet.</Text>
         </View>
 
-        {/* 5. My Prayer Requests — moved from Profile in Block 1c.6 */}
+        {/* 6. My Prayer Requests — moved from Profile in Block 1c.6 */}
         <Text style={[s.sectionTitle, { marginTop: 8, marginBottom: 8 }]}>My Prayer Requests</Text>
         {prayersLoading ? <ActivityIndicator color={C.teal} /> : prayers.length === 0 ? (
           <View style={[s.card, { marginBottom: 12 }]}>
