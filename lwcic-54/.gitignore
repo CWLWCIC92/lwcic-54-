@@ -54,3 +54,5 @@ app/index.js.backup-*
 patch_brp_loadreading.py
 patch_brp_chapter_markers.py
 app/index.js.backup-before-*
+patch_sound_the_alarm.py
+app/index.js.backup-before-sound-the-alarm-*

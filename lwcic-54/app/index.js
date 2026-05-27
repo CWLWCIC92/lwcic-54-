@@ -1469,6 +1469,13 @@ function PrayerScreen({ user, member, onNavigate }) {
   const [congPrayerOpen, setCongPrayerOpen] = React.useState(false);
   const [congPrayer, setCongPrayer] = React.useState(null);
 
+  // Block 1g — Sound the Alarm: most recent active alert + per-user state
+  const [alarmOpen, setAlarmOpen] = React.useState(false);
+  const [alarm, setAlarm] = React.useState(null);
+  const [alarmCount, setAlarmCount] = React.useState(0);
+  const [alarmIPrayed, setAlarmIPrayed] = React.useState(false);
+  const [alarmTapping, setAlarmTapping] = React.useState(false);
+
   React.useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -1514,6 +1521,61 @@ function PrayerScreen({ user, member, onNavigate }) {
     };
     loadPrayers();
   }, [member?.id]);
+
+  // Block 1g — Sound the Alarm fetch: most recent active alert + count + has-prayed
+  React.useEffect(() => {
+    (async () => {
+      // 1. Most recent active alert
+      const { data: alerts, error: aErr } = await supabase
+        .from('prayer_alerts')
+        .select('*')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (aErr) { console.log('alarm fetch error:', aErr); return; }
+      if (!alerts || alerts.length === 0) { setAlarm(null); return; }
+      const a = alerts[0];
+      setAlarm(a);
+
+      // 2. Count total prayers for this alert
+      const { count, error: cErr } = await supabase
+        .from('prayer_alert_responses')
+        .select('*', { count: 'exact', head: true })
+        .eq('alert_id', a.id);
+      if (!cErr) setAlarmCount(count || 0);
+
+      // 3. Has THIS member already prayed?
+      if (member?.id) {
+        const { data: mine } = await supabase
+          .from('prayer_alert_responses')
+          .select('id')
+          .eq('alert_id', a.id)
+          .eq('member_id', member.id)
+          .limit(1);
+        if (mine && mine.length > 0) setAlarmIPrayed(true);
+      }
+    })();
+  }, [member?.id]);
+
+  // Block 1g — handler for 🙏 Praying tap
+  const handlePrayingTap = async () => {
+    if (!alarm || !member?.id || alarmIPrayed || alarmTapping) return;
+    setAlarmTapping(true);
+    const { error } = await supabase
+      .from('prayer_alert_responses')
+      .insert({ alert_id: alarm.id, member_id: member.id });
+    if (!error) {
+      setAlarmIPrayed(true);
+      setAlarmCount(c => c + 1);
+    } else if (error.code === '23505') {
+      // UNIQUE violation — they already prayed (race or stale state). Treat as success.
+      setAlarmIPrayed(true);
+    } else {
+      console.log('🙏 Praying insert error:', error);
+    }
+    setAlarmTapping(false);
+  };
+
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
@@ -1644,11 +1706,62 @@ function PrayerScreen({ user, member, onNavigate }) {
             </>
           )}
 
-        {/* 5. Sound the Alarm archive — placeholder until Phase D */}
-        <View style={[s.card, { marginBottom: 12 }]}>
-          <Text style={s.cardTitle}>Sound the Alarm</Text>
-          <Text style={s.cardBody}>No prayer alerts yet.</Text>
-        </View>
+        {/* 5. Sound the Alarm — Block 1g, most recent active alert + 🙏 Praying counter */}
+        {alarm && (
+          <TouchableOpacity
+            style={[s.card, { marginBottom: alarmOpen ? 8 : 12 }]}
+            onPress={() => setAlarmOpen(!alarmOpen)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>🚨 Sound the Alarm</Text>
+                {alarm.for_person ? (
+                  <Text style={{ color: C.gold, fontSize: 13, fontWeight: '600', marginTop: 2 }}>
+                    Pray for {alarm.for_person}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>
+                {alarmOpen ? '▲' : '▼'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        {alarmOpen && alarm && (
+          <View style={{ backgroundColor: C.navy, borderLeftWidth: 4, borderLeftColor: C.gold, padding: 14, marginBottom: 12, borderRadius: 8 }}>
+            {alarm.title ? (
+              <Text style={{ color: C.gold, fontSize: 17, fontWeight: '700', marginBottom: 10 }}>
+                {alarm.title}
+              </Text>
+            ) : null}
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 16 }}>
+              {alarm.body}
+            </Text>
+            <TouchableOpacity
+              onPress={handlePrayingTap}
+              disabled={alarmIPrayed || alarmTapping}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: alarmIPrayed ? C.green : C.gold,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                alignItems: 'center',
+                opacity: alarmTapping ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>
+                {alarmIPrayed ? `🙏 ${alarmCount} Praying` : '🙏 Praying'}
+              </Text>
+            </TouchableOpacity>
+            {alarm.sent_by ? (
+              <Text style={{ color: C.gold, fontSize: 12, fontStyle: 'italic', marginTop: 10, textAlign: 'center' }}>
+                Sent by {alarm.sent_by}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {/* 6. My Prayer Requests — moved from Profile in Block 1c.6 */}
         <Text style={[s.sectionTitle, { marginTop: 8, marginBottom: 8 }]}>My Prayer Requests</Text>
