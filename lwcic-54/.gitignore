@@ -51,3 +51,6 @@ app-example
 
 # Safety backups taken before patch scripts
 app/index.js.backup-*
+patch_brp_loadreading.py
+patch_brp_chapter_markers.py
+app/index.js.backup-before-*

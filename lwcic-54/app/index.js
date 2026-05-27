@@ -1089,12 +1089,110 @@ function BibleScreen({ user, member, onNavigate }) {
   };
 
   const loadReading = async (day) => {
+    // Phase 2: fetches from daily_reading_plan (schedule) + kjv_bible (verse text)
+    // Produces same todayReading shape the legacy render expects.
     try {
-      const res = await fetch(SURL + '/rest/v1/Daily%20Readings?day_number=eq.' + day + '&limit=1', { headers: SH });
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) setTodayReading(data[0]);
-      else setTodayReading(null);
-    } catch(e) { setTodayReading(null); }
+      // 1. Fetch the day's plan row
+      const planRes = await fetch(SURL + '/rest/v1/daily_reading_plan?day_number=eq.' + day + '&select=passages&limit=1', { headers: SH });
+      const planData = await planRes.json();
+      if (!Array.isArray(planData) || planData.length === 0) {
+        setTodayReading(null);
+        return;
+      }
+      const passages = planData[0].passages || [];
+
+      // 2. Fetch verses for each passage in parallel
+      const fetchPassage = async (p) => {
+        const bookEnc = encodeURIComponent(p.book);
+        // Build chapter/verse filter
+        let filter;
+        if (p.start_v == null && p.end_v == null) {
+          // Whole-chapter range: chapter in [start_ch..end_ch]
+          if (p.start_ch === p.end_ch) {
+            filter = '&chapter=eq.' + p.start_ch;
+          } else {
+            filter = '&chapter=gte.' + p.start_ch + '&chapter=lte.' + p.end_ch;
+          }
+        } else if (p.start_ch === p.end_ch) {
+          // Same-chapter verse range
+          filter = '&chapter=eq.' + p.start_ch + '&verse=gte.' + p.start_v + '&verse=lte.' + p.end_v;
+        } else {
+          // Cross-chapter verse range -- need OR clause via PostgREST
+          // (chapter=start_ch AND verse>=start_v) OR (chapter between) OR (chapter=end_ch AND verse<=end_v)
+          // PostgREST: or=(and(chapter.eq.X,verse.gte.Y),and(chapter.gt.X,chapter.lt.Z),and(chapter.eq.Z,verse.lte.W))
+          const orParts = [];
+          orParts.push('and(chapter.eq.' + p.start_ch + ',verse.gte.' + p.start_v + ')');
+          if (p.end_ch - p.start_ch > 1) {
+            orParts.push('and(chapter.gt.' + p.start_ch + ',chapter.lt.' + p.end_ch + ')');
+          }
+          orParts.push('and(chapter.eq.' + p.end_ch + ',verse.lte.' + p.end_v + ')');
+          filter = '&or=(' + orParts.join(',') + ')';
+        }
+        const url = SURL + '/rest/v1/kjv_bible?book=eq.' + bookEnc + filter + '&select=chapter,verse,text&order=chapter.asc,verse.asc';
+        const r = await fetch(url, { headers: SH });
+        const verses = await r.json();
+        // Build text with verse numbers inline
+        let textBlocks = '';
+        if (Array.isArray(verses) && verses.length > 0) {
+          // Multi-chapter passage? Insert "Chapter N" markers when chapter
+          // changes (skip labeling the FIRST chapter -- reference shows it).
+          const multiChapter = p.start_ch !== p.end_ch;
+          let lastChapter = null;
+          const parts = [];
+          for (const v of verses) {
+            if (multiChapter && lastChapter !== null && v.chapter !== lastChapter) {
+              parts.push('\n\nChapter ' + v.chapter + '\n');
+            }
+            parts.push(v.verse + ' ' + (v.text || ''));
+            lastChapter = v.chapter;
+          }
+          textBlocks = parts.join(' ');
+        }
+        return { label: p.label, book: p.book, text: textBlocks };
+      };
+
+      const results = await Promise.all(passages.map(fetchPassage));
+
+      // 3. Sort results into OT/NT/Ps/Pr buckets by book name
+      const NT_BOOKS = ['Matthew','Mark','Luke','John','Acts','Romans',
+        '1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians',
+        'Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy',
+        'Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
+        '1 John','2 John','3 John','Jude','Revelation'];
+
+      const reading = {
+        ot_reference: '', ot_text: '',
+        nt_reference: '', nt_text: '',
+        psalm_reference: '', psalm_text: '',
+        proverbs_reference: '', proverbs_text: ''
+      };
+
+      for (const r of results) {
+        if (r.book === 'Psalms') {
+          reading.psalm_reference = r.label;
+          reading.psalm_text = r.text;
+        } else if (r.book === 'Proverbs') {
+          reading.proverbs_reference = r.label;
+          reading.proverbs_text = r.text;
+        } else if (NT_BOOKS.indexOf(r.book) !== -1) {
+          reading.nt_reference = r.label;
+          reading.nt_text = r.text;
+        } else {
+          // OT book -- concatenate if multiple (e.g. Day 25: Genesis + Exodus)
+          if (reading.ot_reference) {
+            reading.ot_reference += ' + ' + r.label;
+            reading.ot_text += ' ' + r.text;
+          } else {
+            reading.ot_reference = r.label;
+            reading.ot_text = r.text;
+          }
+        }
+      }
+
+      setTodayReading(reading);
+    } catch(e) {
+      setTodayReading(null);
+    }
   };
 
   const startPlan = async () => {
