@@ -1444,7 +1444,7 @@ function BottomNav({ active, onNav }) {
 //   3. The Lord's Prayer (Matthew 6:9-13 KJV)
 //   4. Sound the Alarm archive (placeholder until Phase D)
 //   5. My Prayer Requests (moved from Profile in 1c.6)
-function PrayerScreen({ user, member, onNavigate }) {
+function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
   // Block 1c.4 — Submit Prayer Request state (moved from Bible)
   const [pRequest, setPRequest] = React.useState('');
   const [pAnon, setPAnon] = React.useState(false);
@@ -1521,6 +1521,12 @@ function PrayerScreen({ user, member, onNavigate }) {
     };
     loadPrayers();
   }, [member?.id]);
+
+  // Block 1h — Deep-link: when App bumps expandAlarmNonce, auto-expand Sound the Alarm.
+  // Nonce-keyed (not boolean) so a later alarm tap re-opens even after the user collapsed it.
+  React.useEffect(() => {
+    if (expandAlarmNonce && expandAlarmNonce > 0) setAlarmOpen(true);
+  }, [expandAlarmNonce]);
 
   // Block 1g — Sound the Alarm fetch: most recent active alert + count + has-prayed
   React.useEffect(() => {
@@ -1902,6 +1908,32 @@ export default function App() {
   // in App() — React's Rules of Hooks. Do not move them below the gates.
   const [welcomeBusy, setWelcomeBusy] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
+  // Block 1h — nonce that signals PrayerScreen to auto-expand Sound the Alarm after a deep-link tap.
+  // A counter (not a boolean) so a later alarm tap re-opens the card even if it was collapsed.
+  const [alarmExpandNonce, setAlarmExpandNonce] = useState(0);
+
+  // Block 1h — Deep-link routing: tapping a prayer-alarm notification routes to the Prayer tab
+  // and expands Sound the Alarm. Handles warm taps (listener fires while the app is running) and
+  // cold-start taps (app launched by the tap). Lives above the conditional returns per Rules of Hooks.
+  // Real APNs delivery is verified on a physical device; on Simulator use `xcrun simctl push`.
+  useEffect(() => {
+    let mounted = true;
+    const routeFromResponse = (response) => {
+      const req = response?.notification?.request;
+      const cdata = req?.content?.data;
+      // Expo push populates content.data; raw APNs (simctl / direct) carries custom keys in trigger.payload
+      const data = (cdata && Object.keys(cdata).length > 0) ? cdata : (req?.trigger?.payload || {});
+      if (data.type === 'alarm') {
+        setScreen('prayer');
+        setAlarmExpandNonce((n) => n + 1);
+      }
+    };
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => { if (mounted && response) routeFromResponse(response); })
+      .catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(routeFromResponse);
+    return () => { mounted = false; sub.remove(); };
+  }, []);
 
   // Block 1b.4: called after LoginScreen verifies OTP successfully
   const handleLoginSuccess = async (loginData) => {
@@ -2071,7 +2103,7 @@ export default function App() {
       case 'watch': return <WatchScreen onNavigate={setScreen} />;
       case 'give': return <GiveScreen member={member} setMember={setMember} onNavigate={setScreen} />;
       case 'bible': return <BibleScreen user={user} member={member} onNavigate={setScreen} />;
-      case 'prayer': return <PrayerScreen user={user} member={member} onNavigate={setScreen} />;
+      case 'prayer': return <PrayerScreen user={user} member={member} onNavigate={setScreen} expandAlarmNonce={alarmExpandNonce} />;
       case 'events': return <EventsScreen onNavigate={setScreen} />;
       case 'notifications': return <NotificationsScreen onNavigate={setScreen} member={member} />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} onNavigate={setScreen} />;
