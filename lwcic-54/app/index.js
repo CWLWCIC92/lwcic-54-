@@ -1050,6 +1050,7 @@ const ROMANS_ROAD = [
 
 
 function BibleScreen({ user, member, onNavigate }) {
+  const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
   const [openSection, setOpenSection] = React.useState(null);
   const [romansStep, setRomansStep] = React.useState(0);
   const [romansComplete, setRomansComplete] = React.useState(false);
@@ -1400,41 +1401,51 @@ function BibleScreen({ user, member, onNavigate }) {
         </TouchableOpacity>
 
         {openSection === 'devotional' && (
-          <View style={[s.card, { marginBottom: 12 }]}>
+          <View style={{ marginBottom: 12, borderWidth: 5, borderColor: C.navy, backgroundColor: C.white }}>
             {devotional ? (
               <View>
-                <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{devotional.scripture_ref || 'Today\'s Verse'}</Text>
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: C.white }}>{devotional.title}</Text>
+                <Text style={{ fontFamily: SERIF, fontWeight: '700', fontSize: 14, lineHeight: 21, textAlign: 'center', color: '#1a1a1a', paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 }}>This daily devotional is written to help the Living Water family begin each day grounded in Scripture, prayer, and trust in Jesus Christ.</Text>
+                <View style={{ backgroundColor: C.navy, paddingVertical: 18, alignItems: 'center', marginHorizontal: 14, marginBottom: 16 }}>
+                  <View style={{ backgroundColor: C.white, borderRadius: 40, padding: 9, marginBottom: 8 }}>
+                    <Image source={require('../assets/images/lwcic-cross-logo.png')} style={{ width: 46, height: 46 }} resizeMode="contain" />
+                  </View>
+                  <Text style={{ fontFamily: SERIF, color: C.white, fontSize: 20, fontWeight: '700' }}>Daily Devotional</Text>
+                  <Text style={{ fontFamily: SERIF, color: '#cdd8e6', fontSize: 12, fontStyle: 'italic', marginTop: 2 }}>Living Water Church In Christ</Text>
                 </View>
+                <Text style={{ fontFamily: SERIF, fontSize: 25, fontWeight: '700', textAlign: 'center', textTransform: 'uppercase', color: '#1a1a1a', lineHeight: 30, paddingHorizontal: 18, marginBottom: 16 }}>{devotional.title}</Text>
                 {devotional.scripture_text ? (
-                  <View style={{ borderLeftWidth: 3, borderLeftColor: C.teal, paddingLeft: 12, marginBottom: 14, marginTop: 2 }}>
-                    <Text style={{ fontSize: 14, color: '#444', fontStyle: 'italic', lineHeight: 22 }}>{devotional.scripture_text}</Text>
-                    <Text style={{ fontSize: 12, color: C.gray, fontWeight: '700', marginTop: 4 }}>{devotional.scripture_ref} (KJV)</Text>
+                  <View style={{ backgroundColor: '#dcdcdc', borderWidth: 3, borderColor: C.navy, padding: 14, marginHorizontal: 18, marginBottom: 16 }}>
+                    <Text style={{ fontFamily: SERIF, fontSize: 15, fontStyle: 'italic', lineHeight: 23, textAlign: 'center', color: '#1a1a1a' }}>{devotional.scripture_text}</Text>
+                    <Text style={{ fontFamily: SERIF, fontSize: 13, fontWeight: '700', textAlign: 'center', color: C.navy, marginTop: 8 }}>{devotional.scripture_ref}</Text>
                   </View>
                 ) : null}
-                <Text style={{ fontSize: 15, color: '#333', lineHeight: 26 }}>{devotional.body}</Text>
+                <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{ backgroundColor: '#9aa7b5', paddingVertical: 8, paddingHorizontal: 22, borderRadius: 22 }}>
+                    <Text style={{ fontFamily: SERIF, fontSize: 13, fontWeight: '700', color: '#41505f' }}>Listen · coming soon</Text>
+                  </View>
+                </View>
+                <Text style={{ fontFamily: SERIF, fontSize: 15, lineHeight: 25, color: '#1a1a1a', paddingHorizontal: 18, marginBottom: 16 }}>{devotional.body}</Text>
                 {devotional.reflection_questions ? (
-                  <View style={{ marginTop: 16, backgroundColor: '#f6f8fa', borderRadius: 12, padding: 14 }}>
-                    <Text style={{ fontSize: 11, color: C.navy, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bread for thought</Text>
+                  <View style={{ backgroundColor: '#f1f0ea', padding: 14, marginHorizontal: 18, marginBottom: 16 }}>
+                    <Text style={{ fontFamily: SERIF, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: C.navy, marginBottom: 8 }}>Bread for Thought</Text>
                     {String(devotional.reflection_questions).split('\n').filter(q => q.trim()).map((q, i) => (
-                      <Text key={i} style={{ fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 4 }}>{'\u2022 ' + q.trim()}</Text>
+                      <Text key={i} style={{ fontFamily: SERIF, fontSize: 14, fontStyle: 'italic', lineHeight: 21, color: '#1a1a1a', marginBottom: 6 }}>{q.trim()}</Text>
                     ))}
                   </View>
                 ) : null}
                 {devotional.closing_prayer ? (
-                  <View style={{ marginTop: 14, borderWidth: 1.5, borderColor: C.lightGray, borderRadius: 12, padding: 14 }}>
-                    <Text style={{ fontSize: 11, color: C.teal, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>A prayer</Text>
-                    <Text style={{ fontSize: 14, color: '#444', fontStyle: 'italic', lineHeight: 23 }}>{devotional.closing_prayer}</Text>
+                  <View style={{ backgroundColor: C.navy, padding: 16, marginHorizontal: 14, marginBottom: 16 }}>
+                    <Text style={{ fontFamily: SERIF, fontSize: 16, fontWeight: '700', textAlign: 'center', color: C.white, marginBottom: 8 }}>A Prayer</Text>
+                    <Text style={{ fontFamily: SERIF, fontSize: 14, fontStyle: 'italic', lineHeight: 22, textAlign: 'center', color: '#eef2f7' }}>{devotional.closing_prayer}</Text>
                   </View>
                 ) : null}
-                <Text style={{ fontSize: 11, color: C.gray, textAlign: 'center', marginTop: 16 }}>Living Water Church In Christ · McKees Rocks</Text>
+                <Text style={{ fontFamily: SERIF, fontSize: 11, textAlign: 'center', color: '#7a7a7a', paddingBottom: 18 }}>Living Water Church In Christ · McKees Rocks</Text>
               </View>
             ) : (
-              <View style={{ alignItems: 'center', padding: 20 }}>
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>🌅</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: C.navy, textAlign: 'center' }}>Today's devotional is being prepared</Text>
-                <Text style={{ fontSize: 12, color: C.gray, marginTop: 6, textAlign: 'center' }}>Be blessed by the Verse of the Day above.</Text>
+              <View style={{ alignItems: 'center', padding: 24 }}>
+                <Image source={require('../assets/images/lwcic-cross-logo.png')} style={{ width: 48, height: 48, marginBottom: 10 }} resizeMode="contain" />
+                <Text style={{ fontFamily: SERIF, fontSize: 16, fontWeight: '700', color: C.navy, textAlign: 'center' }}>Today's devotional is being prepared</Text>
+                <Text style={{ fontFamily: SERIF, fontSize: 13, color: C.gray, marginTop: 6, textAlign: 'center' }}>Be blessed by the Verse of the Day above.</Text>
               </View>
             )}
           </View>
