@@ -539,7 +539,7 @@ async function fetchTodayScripture(poolTableName) {
 
     const { data: poolRow } = await supabase
       .from(poolTableName)
-      .select('book, chapter, verse_start, verse_end')
+      .select('id, book, chapter, verse_start, verse_end')
       .eq('rotation_key', idx)
       .eq('active', true)
       .maybeSingle();
@@ -560,7 +560,7 @@ async function fetchTodayScripture(poolTableName) {
     const ref = poolRow.verse_end && poolRow.verse_end !== poolRow.verse_start
       ? `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}-${poolRow.verse_end}`
       : `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}`;
-    return { text, ref };
+    return { text, ref, poolId: poolRow.id };
   } catch (e) {
     console.log('[scripture pool] fetch failed:', e.message);
     return null;
@@ -1233,10 +1233,14 @@ function BibleScreen({ user, member, onNavigate }) {
 
   const loadDevotional = async () => {
     try {
-      const res = await fetch(SURL + '/rest/v1/devotionals?order=week_start.desc&limit=1', { headers: SH });
+      const v = await fetchTodayScripture('verse_of_the_day_pool');
+      const pid = v && v.poolId;
+      if (!pid) { setDevotional(null); return; }
+      const res = await fetch(SURL + '/rest/v1/votd_devotionals?votd_pool_id=eq.' + pid + '&active=eq.true&limit=1', { headers: SH });
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) setDevotional(data[0]);
-    } catch(e) {}
+      else setDevotional(null);
+    } catch(e) { setDevotional(null); }
   };
 
   const ROMANS_ROAD = [
@@ -1388,8 +1392,8 @@ function BibleScreen({ user, member, onNavigate }) {
           <View style={s.row}>
             <Text style={{ fontSize: 22, marginRight: 12 }}>🌅</Text>
             <View style={s.flex}>
-              <Text style={s.cardTitle}>Weekly Devotional</Text>
-              <Text style={s.cardBody}>Pastor's weekly message</Text>
+              <Text style={s.cardTitle}>Daily Devotional</Text>
+              <Text style={s.cardBody}>Today's verse, opened</Text>
             </View>
             <Text style={{ color: C.teal, fontWeight: '700' }}>{openSection === 'devotional' ? '▲' : '▼'}</Text>
           </View>
@@ -1400,18 +1404,37 @@ function BibleScreen({ user, member, onNavigate }) {
             {devotional ? (
               <View>
                 <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 12 }}>
-                  <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Week of {new Date(devotional.week_start).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: C.white, marginBottom: 6 }}>{devotional.title}</Text>
-                  <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>{devotional.scripture}</Text>
+                  <Text style={{ fontSize: 11, color: C.teal, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{devotional.scripture_ref || 'Today\'s Verse'}</Text>
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: C.white }}>{devotional.title}</Text>
                 </View>
-                <Text style={{ fontSize: 14, color: '#555', lineHeight: 24 }}>{devotional.body}</Text>
-                {devotional.author && <Text style={{ fontSize: 12, color: C.gray, fontWeight: '700', marginTop: 12 }}>— {devotional.author}</Text>}
+                {devotional.scripture_text ? (
+                  <View style={{ borderLeftWidth: 3, borderLeftColor: C.teal, paddingLeft: 12, marginBottom: 14, marginTop: 2 }}>
+                    <Text style={{ fontSize: 14, color: '#444', fontStyle: 'italic', lineHeight: 22 }}>{devotional.scripture_text}</Text>
+                    <Text style={{ fontSize: 12, color: C.gray, fontWeight: '700', marginTop: 4 }}>{devotional.scripture_ref} (KJV)</Text>
+                  </View>
+                ) : null}
+                <Text style={{ fontSize: 15, color: '#333', lineHeight: 26 }}>{devotional.body}</Text>
+                {devotional.reflection_questions ? (
+                  <View style={{ marginTop: 16, backgroundColor: '#f6f8fa', borderRadius: 12, padding: 14 }}>
+                    <Text style={{ fontSize: 11, color: C.navy, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bread for thought</Text>
+                    {String(devotional.reflection_questions).split('\n').filter(q => q.trim()).map((q, i) => (
+                      <Text key={i} style={{ fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 4 }}>{'\u2022 ' + q.trim()}</Text>
+                    ))}
+                  </View>
+                ) : null}
+                {devotional.closing_prayer ? (
+                  <View style={{ marginTop: 14, borderWidth: 1.5, borderColor: C.lightGray, borderRadius: 12, padding: 14 }}>
+                    <Text style={{ fontSize: 11, color: C.teal, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>A prayer</Text>
+                    <Text style={{ fontSize: 14, color: '#444', fontStyle: 'italic', lineHeight: 23 }}>{devotional.closing_prayer}</Text>
+                  </View>
+                ) : null}
+                <Text style={{ fontSize: 11, color: C.gray, textAlign: 'center', marginTop: 16 }}>Living Water Church In Christ · McKees Rocks</Text>
               </View>
             ) : (
               <View style={{ alignItems: 'center', padding: 20 }}>
                 <Text style={{ fontSize: 36, marginBottom: 8 }}>🌅</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: C.navy }}>No Devotional This Week</Text>
-                <Text style={{ fontSize: 12, color: C.gray, marginTop: 6, textAlign: 'center' }}>Check back soon.</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: C.navy, textAlign: 'center' }}>Today's devotional is being prepared</Text>
+                <Text style={{ fontSize: 12, color: C.gray, marginTop: 6, textAlign: 'center' }}>Be blessed by the Verse of the Day above.</Text>
               </View>
             )}
           </View>
