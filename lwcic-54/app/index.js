@@ -1049,6 +1049,124 @@ const ROMANS_ROAD = [
 
 
 
+const LORDS_PRAYER = [
+  { step:1,  phrase:"Our Father", element:"Relationship",
+    prayer:"Lord, I thank You for salvation.",
+    prompt:"Father God, I thank You for ______.  Jesus, I thank You for ______.",
+    scripture:"Through Jesus I have received the Spirit of adoption, and by Him I cry, ‘Abba, Father.’",
+    ref:"Romans 8:15" },
+  { step:2,  phrase:"which art in Heaven", element:"Recognition",
+    prayer:"I thank You, Father God and Lord Jesus — You never sleep nor slumber, and from Heaven You are always working on my behalf.",
+    prompt:"I lift these troubles up to You now — ______ — work them out for my good.",
+    scripture:"Behold, He that keepeth Israel shall neither slumber nor sleep.",
+    ref:"Psalm 121:4" },
+  { step:3,  phrase:"Hallowed be thy name", element:"Adoration",
+    prayer:"Lord, before I ask You for anything, I stop and adore You — holy, holy, holy is Your name.",
+    prompt:"Today I worship You by the name I most need to know You as: my ______ (Provider, Healer, Peace, Shepherd).",
+    scripture:"O Lord my Lord, how excellent is Your name in all the earth.",
+    ref:"Psalm 8:1" },
+  { step:4,  phrase:"Thy Kingdom Come", element:"Anticipation",
+    prayer:"Come, Holy Spirit, come — fill me with Your Spirit, Lord, and let Your Kingdom come in me.",
+    prompt:"Father, the place I am longing to see Your Kingdom break in — my home, my church, this city — is ______.",
+    scripture:"The Kingdom of God is righteousness, and peace, and joy in the Holy Ghost.",
+    ref:"Romans 14:17" },
+  { step:5,  phrase:"Thy will be done", element:"Consecration",
+    prayer:"Lord, not my will but Yours be done — I lay myself on Your altar today.",
+    prompt:"Father, the area where I most need to surrender my own will to Yours is ______.",
+    scripture:"I present myself a living sacrifice, holy and acceptable unto God.",
+    ref:"Romans 12:1" },
+  { step:6,  phrase:"in earth", element:"Universality",
+    prayer:"Lord, let Your will be done not only in me, but across the whole earth.",
+    prompt:"Father, the nation, the leader, or the people I am carrying before You today is ______.",
+    scripture:"The earth shall be filled with the knowledge of the glory of the Lord.",
+    ref:"Habakkuk 2:14" },
+  { step:7,  phrase:"as it is in Heaven", element:"Conformity",
+    prayer:"Lord, let my life on earth mirror the perfect obedience of Heaven.",
+    prompt:"Father, the place where my walk does not yet match Your will — change me here: ______.",
+    scripture:"I am being conformed to the image of His Son.",
+    ref:"Romans 8:29" },
+  { step:8,  phrase:"Give us", element:"Supplication",
+    prayer:"Lord, You invite me to ask — so now I make my requests known to You.",
+    prompt:"Father, You said ask, seek, knock; so today I am asking You for ______.",
+    scripture:"In every thing by prayer and supplication I let my requests be made known unto God.",
+    ref:"Philippians 4:6" },
+  { step:9,  phrase:"this day", element:"Definiteness",
+    prayer:"Lord, I am not borrowing tomorrow's worry — I bring You today's need.",
+    prompt:"Father, the one thing I most need from You for this day is ______.",
+    scripture:"His mercies are new every morning; great is His faithfulness.",
+    ref:"Lamentations 3:22-23" },
+  { step:10, phrase:"our daily bread", element:"Necessity",
+    prayer:"Lord, I depend on You for every necessity of my life — body and soul.",
+    prompt:"Father, the need I am trusting You to provide is ______.",
+    scripture:"My God shall supply all my need according to His riches in glory by Christ Jesus.",
+    ref:"Philippians 4:19" },
+  { step:11, phrase:"And forgive us", element:"Penitence",
+    prayer:"Lord, I come with a humble and repentant heart; cleanse me.",
+    prompt:"Father, the sin I confess and turn from right now is ______.",
+    scripture:"If I confess my sins, He is faithful and just to forgive me, and to cleanse me from all unrighteousness.",
+    ref:"1 John 1:9" },
+  { step:12, phrase:"our debts", element:"Obligation",
+    prayer:"Lord, I acknowledge the debt of sin I could never pay — and I thank You that Jesus paid it in full.",
+    prompt:"Father, the weight or the guilt I am laying at Your cross today is ______.",
+    scripture:"He blotted out the handwriting that was against me, nailing it to His cross.",
+    ref:"Colossians 2:14" },
+  { step:13, phrase:"as we forgive", element:"Forgiveness",
+    prayer:"Lord, as You have forgiven me, I choose to forgive.",
+    prompt:"Father, the person I release and forgive today is ______.",
+    scripture:"If I forgive others their trespasses, my heavenly Father will also forgive me.",
+    ref:"Matthew 6:14" },
+  { step:14, phrase:"our debtors", element:"Love and Mercy",
+    prayer:"Lord, I extend the same mercy I have freely received from You.",
+    prompt:"Father, the one who has hurt me that I now bless and pray for is ______.",
+    scripture:"Be merciful, as your Father also is merciful.",
+    ref:"Luke 6:36" },
+  { step:15, phrase:"And lead us not", element:"Guidance",
+    prayer:"Lord, I surrender my steps to You — lead me.",
+    prompt:"Father, the decision or the path where I most need Your guidance is ______.",
+    scripture:"He leadeth me in the paths of righteousness for His name's sake.",
+    ref:"Psalm 23:3" },
+  { step:16, phrase:"into temptation", element:"Protection",
+    prayer:"Lord, guard me from the snares of the enemy and keep my heart.",
+    prompt:"Father, the temptation I need Your strength to overcome is ______.",
+    scripture:"God will with the temptation also make a way to escape.",
+    ref:"1 Corinthians 10:13" },
+  { step:17, phrase:"but deliver us", element:"Salvation",
+    prayer:"Lord, You are my Deliverer; I trust You to rescue me.",
+    prompt:"Father, the trouble I need You to deliver me out of is ______.",
+    scripture:"Whom the Son sets free is free indeed.",
+    ref:"John 8:36" },
+  { step:18, phrase:"from evil", element:"Righteousness",
+    prayer:"Lord, I choose righteousness and turn from every form of evil.",
+    prompt:"Father, the influence or the habit I am asking You to free me from is ______.",
+    scripture:"In Christ I am made the righteousness of God.",
+    ref:"2 Corinthians 5:21" },
+  { step:19, phrase:"For thine is the kingdom", element:"Faith",
+    prayer:"Lord, I declare in faith — the Kingdom is Yours, and I trust You with it all.",
+    prompt:"Father, the situation I am choosing to trust You with by faith is ______.",
+    scripture:"Thine is the kingdom, O Lord, and Thou art exalted as head above all.",
+    ref:"1 Chronicles 29:11" },
+  { step:20, phrase:"and the power", element:"Humility",
+    prayer:"Lord, I humble myself — all power belongs to You, not to me.",
+    prompt:"Father, the weakness where I need Your power made perfect is ______.",
+    scripture:"His strength is made perfect in weakness.",
+    ref:"2 Corinthians 12:9" },
+  { step:21, phrase:"and the glory", element:"Reverence",
+    prayer:"Lord, I give You all the glory, and I take none for myself.",
+    prompt:"Father, the answered prayer or the blessing I now give You glory for is ______.",
+    scripture:"Not unto me, O Lord, but unto Thy name give glory.",
+    ref:"Psalm 115:1" },
+  { step:22, phrase:"for ever", element:"Timelessness",
+    prayer:"Lord, I rest in You — the God who has no beginning and no end.",
+    prompt:"Father, the worry about the future I am placing into Your everlasting hands is ______.",
+    scripture:"From everlasting to everlasting, Thou art God.",
+    ref:"Psalm 90:2" },
+  { step:23, phrase:"Amen", element:"Affirmation",
+    prayer:"Lord, I seal this prayer in faith — so be it.",
+    prompt:"Father, the one thing I am believing You have heard and will answer is ______.",
+    scripture:"All the promises of God in Him are Yea, and in Him Amen.",
+    ref:"2 Corinthians 1:20" },
+];
+
 function BibleScreen({ user, member, onNavigate }) {
   const SERIF = Platform.OS === 'ios' ? 'Georgia' : 'serif';
   const [openSection, setOpenSection] = React.useState(null);
@@ -1485,6 +1603,10 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
   const [submitFormOpen, setSubmitFormOpen] = React.useState(false);
   // Block 1c.5 — The Lord's Prayer collapse state
   const [lordsPrayerOpen, setLordsPrayerOpen] = React.useState(false);
+  const [lordsPrayerStep, setLordsPrayerStep] = React.useState(0);
+  const [lordsPrayerComplete, setLordsPrayerComplete] = React.useState(false);
+  const [lordsPrayerStarted, setLordsPrayerStarted] = React.useState(false);
+  const lp = LORDS_PRAYER[lordsPrayerStep];
   // Block 1c.6 — My Prayer Requests history (moved from Profile)
   const [prayers, setPrayers] = React.useState([]);
   const [prayersLoading, setPrayersLoading] = React.useState(true);
@@ -1688,30 +1810,74 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
         </View>
         )}
 
-        {/* 3. The Lord's Prayer — Block 1c.5, collapsible (tap to expand) */}
-        <TouchableOpacity
-          style={[s.card, { marginBottom: lordsPrayerOpen ? 8 : 12 }]}
-          onPress={() => setLordsPrayerOpen(!lordsPrayerOpen)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={s.cardTitle}>The Lord's Prayer</Text>
-            <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>{lordsPrayerOpen ? '▲' : '▼'}</Text>
-          </View>
-        </TouchableOpacity>
+      {/* 3. The Lord's Prayer — walkthrough v2 (intro + 23 steps) */}
+      <TouchableOpacity
+        style={[s.card, { marginBottom: lordsPrayerOpen ? 8 : 12 }]}
+        onPress={() => setLordsPrayerOpen(!lordsPrayerOpen)}
+        activeOpacity={0.7}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={s.cardTitle}>The Lord's Prayer</Text>
+          <Text style={{ color: C.teal, fontWeight: '700', fontSize: 16 }}>{lordsPrayerOpen ? '▲' : '▼'}</Text>
+        </View>
+      </TouchableOpacity>
 
-        {lordsPrayerOpen && (
-          <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: C.gold }}>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Our Father which art in heaven,{'\n'}Hallowed be thy name.</Text>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Thy kingdom come.{'\n'}Thy will be done in earth,{'\n'}as it is in heaven.</Text>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>Give us this day our daily bread.</Text>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>And forgive us our debts,{'\n'}as we forgive our debtors.</Text>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 12 }}>And lead us not into temptation,{'\n'}but deliver us from evil:</Text>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 24, marginBottom: 16 }}>For thine is the kingdom,{'\n'}and the power, and the glory,{'\n'}for ever. Amen.</Text>
-            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Matthew 6:9-13 KJV</Text>
+      {lordsPrayerOpen && !lordsPrayerStarted && (
+        <View style={{ backgroundColor: '#FAEEDA', borderWidth: 1, borderColor: '#E8D29A', borderRadius: 16, padding: 20, marginBottom: 12 }}>
+          <Text style={{ fontSize: 22, fontWeight: '700', fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3A2206', marginBottom: 10, textAlign: 'center' }}>A Pattern for Prayer</Text>
+          <Text style={{ fontSize: 14, lineHeight: 22, fontStyle: 'italic', color: '#6A4A1C', textAlign: 'center', marginBottom: 16 }}>“After this manner therefore pray ye.” — Matthew 6:9. Jesus gave this prayer not to recite, but as a pattern to pray by. Walk through it phrase by phrase, and let each line open your own prayer.</Text>
+          <View style={{ borderTopWidth: 1, borderTopColor: '#E8D29A', paddingTop: 14, marginBottom: 18 }}>
+            <Text style={{ fontSize: 15, lineHeight: 26, fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3F2A0E', textAlign: 'center' }}>Our Father which art in heaven,{'\n'}Hallowed be thy name.{'\n'}Thy kingdom come.{'\n'}Thy will be done in earth,{'\n'}as it is in heaven.{'\n'}Give us this day our daily bread.{'\n'}And forgive us our debts,{'\n'}as we forgive our debtors.{'\n'}And lead us not into temptation,{'\n'}but deliver us from evil:{'\n'}For thine is the kingdom,{'\n'}and the power, and the glory,{'\n'}for ever. Amen.</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8A5A12', textAlign: 'center', marginTop: 10 }}>— Matthew 6:9-13 KJV</Text>
           </View>
-        )}
+          <TouchableOpacity onPress={() => { setLordsPrayerStep(0); setLordsPrayerComplete(false); setLordsPrayerStarted(true); }} style={{ backgroundColor: '#8A5A12', borderRadius: 12, padding: 14, alignItems: 'center' }}>
+            <Text style={{ color: '#FBF1DA', fontSize: 14, fontWeight: '700' }}>Begin praying</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
+      {lordsPrayerOpen && lordsPrayerStarted && !lordsPrayerComplete && (
+        <View style={{ backgroundColor: '#FAEEDA', borderWidth: 1, borderColor: '#E8D29A', borderRadius: 16, padding: 18, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ backgroundColor: '#F3DCA6', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 11 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#5A3406' }}>{lp.element}</Text>
+            </View>
+            <Text style={{ fontSize: 12, color: '#9A6A1E' }}>{lordsPrayerStep + 1} / {LORDS_PRAYER.length}</Text>
+          </View>
+          <View style={{ height: 5, backgroundColor: '#ECDFC0', borderRadius: 3, marginBottom: 16, overflow: 'hidden' }}>
+            <View style={{ height: 5, width: (((lordsPrayerStep + 1) / LORDS_PRAYER.length) * 100) + '%', backgroundColor: '#8A5A12', borderRadius: 3 }} />
+          </View>
+          <Text style={{ fontSize: 24, fontWeight: '700', fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3A2206', marginBottom: 16 }}>“{lp.phrase}”</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A5A12', marginBottom: 4 }}>Pray this</Text>
+          <Text style={{ fontSize: 15, lineHeight: 22, color: '#3F2A0E', marginBottom: 16 }}>{lp.prayer}</Text>
+          <View style={{ backgroundColor: '#FBF4E2', borderWidth: 1, borderColor: '#E3CB92', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A5A12', marginBottom: 4 }}>Make it personal</Text>
+            <Text style={{ fontSize: 15, lineHeight: 24, color: '#3F2A0E' }}>{lp.prompt}</Text>
+          </View>
+          <View style={{ borderLeftWidth: 3, borderLeftColor: '#8A5A12', paddingLeft: 13, marginBottom: 18 }}>
+            <Text style={{ fontSize: 15, lineHeight: 22, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#6A4A1C', marginBottom: 5 }}>{lp.scripture}</Text>
+            <Text style={{ fontSize: 13, color: '#8A5A12' }}>{lp.ref}</Text>
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity onPress={() => { if (lordsPrayerStep === 0) setLordsPrayerStarted(false); else setLordsPrayerStep(s => s - 1); }} style={{ flex: 1, borderWidth: 1.5, borderColor: '#DCC489', borderRadius: 12, padding: 14, alignItems: 'center', marginRight: 8 }}>
+              <Text style={{ color: '#6A4310', fontSize: 14, fontWeight: '700' }}>Back</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { if (lordsPrayerStep < LORDS_PRAYER.length - 1) setLordsPrayerStep(s => s + 1); else setLordsPrayerComplete(true); }} style={{ flex: 2, backgroundColor: '#8A5A12', borderRadius: 12, padding: 14, alignItems: 'center' }}>
+              <Text style={{ color: '#FBF1DA', fontSize: 14, fontWeight: '700' }}>{lordsPrayerStep < LORDS_PRAYER.length - 1 ? 'Next' : 'Amen'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {lordsPrayerOpen && lordsPrayerComplete && (
+        <View style={{ backgroundColor: '#FAEEDA', borderWidth: 1, borderColor: '#E8D29A', borderRadius: 16, padding: 22, marginBottom: 12, alignItems: 'center' }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#633806', marginBottom: 8, textAlign: 'center' }}>Amen.</Text>
+          <Text style={{ fontSize: 14, lineHeight: 22, fontStyle: 'italic', color: '#6A4A1C', textAlign: 'center', marginBottom: 16 }}>You have prayed through the pattern Jesus taught. Carry it with you today.</Text>
+          <TouchableOpacity onPress={() => { setLordsPrayerStep(0); setLordsPrayerComplete(false); setLordsPrayerStarted(true); }} style={{ borderWidth: 1.5, borderColor: '#DCC489', borderRadius: 12, padding: 14, alignItems: 'center', width: '100%' }}>
+            <Text style={{ color: '#6A4310', fontSize: 14, fontWeight: '700' }}>Pray it again</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
           {/* 4. Congregational Prayer — Block 1e.4, collapsible (tap to expand) */}
           {congPrayer && (
