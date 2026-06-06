@@ -1700,6 +1700,7 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
       if (!alerts || alerts.length === 0) { setAlarm(null); return; }
       const a = alerts[0];
       setAlarm(a);
+      setAlarmIPrayed(false); // reset for the newly loaded alert; step 3 re-sets true only if THIS member prayed for THIS alert
 
       // 2. Count total prayers for this alert
       const { count, error: cErr } = await supabase
