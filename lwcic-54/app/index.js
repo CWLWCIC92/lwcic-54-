@@ -245,7 +245,8 @@ function LoginScreen({ onLogin }) {
 
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.navy }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.flex, s.center]}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Image source={require('../assets/images/lwcic-cross-logo.png')} style={s.logoImage} resizeMode="contain" />
         <Pressable
           onLongPress={() => setStage('reviewer-login')}
@@ -362,8 +363,9 @@ function LoginScreen({ onLogin }) {
                 <Text style={s.demoText}>Resend code / change phone</Text>
               </TouchableOpacity>
             </>
-          )}
+        )}
         </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1717,7 +1719,7 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
         if (mine && mine.length > 0) setAlarmIPrayed(true);
       }
     })();
-  }, [member?.id]);
+  }, [member?.id, expandAlarmNonce]);
 
   // Block 1g — handler for 🙏 Praying tap
   const handlePrayingTap = async () => {
