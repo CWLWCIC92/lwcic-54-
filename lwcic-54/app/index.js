@@ -9,11 +9,20 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 
 const supabase = createClient(
   'https://ldjynhvueuyjjjlkkyff.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanluaHZ1ZXV5ampqbGtreWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzM5OTEsImV4cCI6MjA4ODUwOTk5MX0.YK_eC9915lyytC7xYSyAkO-2V5GStEpbb3fRMHd6OpI',
+  {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
 );
 
 const C = {
@@ -2127,6 +2136,7 @@ export default function App() {
   // Block 1b.4: member row resolved after OTP verify
   const [member, setMember] = useState(null);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [bootChecking, setBootChecking] = useState(true);
   // Block 1b.5a / 1b.5b — Busy flags for the two pre-Home gate screens.
   // CRITICAL: these useState calls MUST live above any conditional return
   // in App() — React's Rules of Hooks. Do not move them below the gates.
@@ -2215,6 +2225,37 @@ export default function App() {
     setMember({ ...member, welcomed_at: nowIso });
     setWelcomeBusy(false);
   };
+
+  // Restore a saved Supabase session on launch so members stay logged in
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session?.user) {
+          await handleLoginSuccess({
+            authUser: session.user,
+            firstName: '',
+            lastName: '',
+            phone: session.user?.phone || null,
+          });
+        }
+      } catch (e) {
+        console.log('[auth restore] getSession error:', e?.message || e);
+      } finally {
+        if (mounted) setBootChecking(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (bootChecking) {
+    return (
+      <View style={[s.flex, { backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' }]}>
+        <Image source={require('../assets/images/lwcic-cross-logo.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
+      </View>
+    );
+  }
 
   if (!loggedIn) return <LoginScreen onLogin={handleLoginSuccess} />;
 
