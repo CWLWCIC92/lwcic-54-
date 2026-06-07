@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView, Platform, FlatList, Switch,
   AppState, Linking, Pressable, Image
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createClient } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 
@@ -1578,8 +1579,10 @@ function BibleScreen({ user, member, onNavigate }) {
 }
 
 function BottomNav({ active, onNav }) {
+  const insets = useSafeAreaInsets();
+  const navPadBottom = Platform.OS === 'ios' ? 20 : Math.max(insets.bottom, 8);
   return (
-    <View style={s.nav}>
+    <View style={[s.nav, { paddingBottom: navPadBottom }]}>
       {NAV.map(n => (
         <TouchableOpacity key={n.key} style={s.navItem} onPress={() => onNav(n.key)}>
           <Text style={s.navIcon}>{n.icon}</Text>
