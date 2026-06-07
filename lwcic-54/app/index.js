@@ -542,7 +542,7 @@ async function fetchTodayScripture(poolTableName) {
 
     const { data: poolRow } = await supabase
       .from(poolTableName)
-      .select('id, book, chapter, verse_start, verse_end')
+      .select('*')
       .eq('rotation_key', idx)
       .eq('active', true)
       .maybeSingle();
@@ -563,7 +563,7 @@ async function fetchTodayScripture(poolTableName) {
     const ref = poolRow.verse_end && poolRow.verse_end !== poolRow.verse_start
       ? `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}-${poolRow.verse_end}`
       : `${poolRow.book} ${poolRow.chapter}:${poolRow.verse_start}`;
-    return { text, ref, poolId: poolRow.id };
+    return { text, ref, poolId: poolRow.id, reflection: poolRow.reflection || null };
   } catch (e) {
     console.log('[scripture pool] fetch failed:', e.message);
     return null;
@@ -612,6 +612,7 @@ function GiveScreen({ member, setMember, onNavigate }) {
   const [emailDraft, setEmailDraft] = useState(member?.email || '');
   const [emailSaving, setEmailSaving] = useState(false);
   // Phase G: rotating give scripture from pool (with hardcoded fallback)
+  const [giveReflectOpen, setGiveReflectOpen] = useState(false);
   const [giveScriptureState, setGiveScriptureState] = useState(giveScripture());
   useEffect(() => {
     fetchTodayScripture('giving_scripture_pool').then(v => {
@@ -734,6 +735,14 @@ function GiveScreen({ member, setMember, onNavigate }) {
                 "{giveScriptureState.text}"
               </Text>
               <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {giveScriptureState.ref} KJV</Text>
+              {giveScriptureState.reflection ? (
+                <TouchableOpacity activeOpacity={0.7} onPress={() => setGiveReflectOpen(o => !o)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+                  <Text style={{ color: C.gold, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>{giveReflectOpen ? 'REFLECTION ▲' : 'TAP FOR REFLECTION ▼'}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {giveReflectOpen && giveScriptureState.reflection ? (
+                <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14, lineHeight: 22, marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' }}>{giveScriptureState.reflection}</Text>
+              ) : null}
             </View>
             <Text style={s.sectionTitle}>Select Fund</Text>
             <View style={s.fundRow}>
@@ -1616,6 +1625,7 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
   const [prayers, setPrayers] = React.useState([]);
   const [prayersLoading, setPrayersLoading] = React.useState(true);
   // Phase G: rotating prayer scripture from pool (with hardcoded fallback)
+  const [prayerReflectOpen, setPrayerReflectOpen] = React.useState(false);
   const [prayerScripture, setPrayerScripture] = React.useState({
     text: "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.",
     ref: "Philippians 4:6"
@@ -1760,6 +1770,14 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
             "{prayerScripture.text}"
           </Text>
           <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {prayerScripture.ref} KJV</Text>
+            {prayerScripture.reflection ? (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setPrayerReflectOpen(o => !o)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+                <Text style={{ color: C.gold, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>{prayerReflectOpen ? 'REFLECTION ▲' : 'TAP FOR REFLECTION ▼'}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {prayerReflectOpen && prayerScripture.reflection ? (
+              <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14, lineHeight: 22, marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' }}>{prayerScripture.reflection}</Text>
+            ) : null}
         </View>
 
         {/* 2. Submit a Prayer Request — moved from Bible in Block 1c.4 */}
