@@ -402,7 +402,7 @@ function HomeScreen({ onNavigate }) {
     const load = async () => {
       const [a, e] = await Promise.all([
         supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('events').select('*').gte('event_date', new Date().toISOString().split('T')[0]).order('event_date').limit(5),
+        supabase.from('events').select('*').gte('event_date', new Date().toISOString().split('T')[0]).order('event_date').limit(20),
       ]);
       if (a.data?.length) setAnnouncements(a.data);
       else setAnnouncements([
@@ -446,17 +446,25 @@ function HomeScreen({ onNavigate }) {
             </View>
           ))}
           <Text style={[s.sectionTitle, { marginTop: 20 }]}>Upcoming Events</Text>
-          {events.map(e => (
-            <View key={e.id} style={[s.card, s.row]}>
-              <View style={s.dateBadge}>
-                <Text style={s.dateBadgeText}>{(() => { const d = new Date((e.event_date || e.date || '') + 'T12:00:00'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate(); })()}</Text>
+          {events.map(e => {
+            const rawDate = e.event_date || e.date || '';
+            const d = rawDate ? new Date(rawDate.includes('T') ? rawDate : rawDate + 'T12:00:00') : new Date();
+            return (
+              <View key={e.id} style={[s.card, s.row]}>
+                <View style={s.dateBadge}>
+                  <Text style={s.dateBadgeMonth}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}</Text>
+                  <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
+                </View>
+                <View style={s.flex}>
+                  <Text style={s.cardTitle}>{e.title}</Text>
+                  {(e.start_time || e.time) && <Text style={[s.cardBody, { color: C.teal }]}>{formatTime(e.start_time) || e.time}</Text>}
+                  {e.location && <Text style={s.cardBody}>📍 {e.location}</Text>}
+                  {e.description && <Text style={[s.cardBody, { marginTop: 4 }]}>{renderRichRN(e.description)}</Text>}
+                  {e.recurring && <Text style={[s.cardBody, { color: C.gold, fontWeight: '700' }]}>🔁 Weekly</Text>}
+                </View>
               </View>
-              <View style={s.flex}>
-                <Text style={s.cardTitle}>{e.title}</Text>
-                <Text style={s.cardBody}>{e.location}</Text>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </>}
       </ScrollView>
     </SafeAreaView>
@@ -541,6 +549,15 @@ function dayOfYearRotation(poolSize) {
 // Phase G: fetch today's verse from a scripture pool with kjv_bible JOIN
 // Render announcement/event body text with tappable links:
 //   [label](url) -> a labeled link; bare http(s) URLs also become links.
+function formatTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const regular = hour % 12 || 12;
+  return `${regular}:${m} ${ampm}`;
+}
+
 function renderRichRN(text) {
   if (!text) return text;
   const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/g;
@@ -868,69 +885,64 @@ function GiveScreen({ member, setMember, onNavigate }) {
   );
 }
 
-function EventsScreen({ onNavigate }) {
-  const [events, setEvents] = useState([]);
+function ServeScreen({ onNavigate }) {
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState({});
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('events').select('*').order('event_date').limit(20);
-      if (data?.length) setEvents(data);
-      else setEvents([
-        { id: '1', title: 'Sunday Worship Service', date: '2026-03-15', time: '10:30 AM', location: 'Main Sanctuary', description: 'Join us for praise, worship and the Word.' },
-        { id: '2', title: 'Wednesday Bible Study', date: '2026-03-18', time: '7:00 PM', location: 'Fellowship Hall', description: 'Deep dive into Scripture together.' },
-        { id: '3', title: 'Youth Night', date: '2026-03-20', time: '6:00 PM', location: 'Youth Center', description: 'Fun, faith and fellowship for youth.' },
-        { id: '4', title: 'Prayer & Fasting', date: '2026-03-25', time: '6:00 AM', location: 'Chapel', description: 'Corporate prayer and fasting.' },
-        { id: '5', title: 'Community Outreach', date: '2026-03-28', time: '10:00 AM', location: 'McKees Rocks', description: 'Serving our community with love.' },
+      const { data } = await supabase.from('serve_opportunities').select('*').eq('active', true).order('sort_order');
+      if (data?.length) setItems(data);
+      else setItems([
+        { id: '1', title: 'LWCIC Serving Opportunities', icon: '🤲', description: 'We are the hands and feet of Jesus. There is a place for you to serve at Living Water.', link_label: null, link_url: null },
       ]);
       setLoading(false);
     };
     load();
   }, []);
 
-  const formatTime = (t) => {
-    if (!t) return '';
-    const [h, m] = t.split(':');
-    const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const regular = hour % 12 || 12;
-    return `${regular}:${m} ${ampm}`;
-  };
-
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <SafeAreaView style={[s.flex, { backgroundColor: C.bg }]}>
       <View style={s.header}>
-        <Text style={s.headerTitle}>Events</Text>
+        <Text style={s.headerTitle}>Serve</Text>
         <TouchableOpacity onPress={() => onNavigate && onNavigate('profile')} style={s.headerSilhouette}>
           <Text style={{ fontSize: 22 }}>👤</Text>
         </TouchableOpacity>
       </View>
       {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : (
-        <FlatList
-          data={events}
-          keyExtractor={i => String(i.id)}
-          contentContainerStyle={{ padding: 16 }}
-          renderItem={({ item }) => {
-            const rawDate = item.event_date || item.date || ''; const d = rawDate ? new Date(rawDate.includes('T') ? rawDate : rawDate + 'T12:00:00') : new Date();
+        <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
+          <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
+              "For, brethren, ye have been called unto liberty; only use not liberty for an occasion to the flesh, but by love serve one another."
+            </Text>
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Galatians 5:13 KJV</Text>
+          </View>
+          {items.map(it => {
+            const open = !!expanded[it.id];
             return (
-              <View style={[s.card, s.row]}>
-                <View style={s.dateBadge}>
-                  <Text style={s.dateBadgeMonth}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}</Text>
-                  <Text style={s.dateBadgeDay}>{d.getDate()}</Text>
-                </View>
-                <View style={s.flex}>
-                  <Text style={s.cardTitle}>{item.title}</Text>
-                  {(item.start_time || item.time) && <Text style={[s.cardBody, { color: C.teal }]}>{formatTime(item.start_time) || item.time}</Text>}
-                  {item.location && <Text style={s.cardBody}>📍 {item.location}</Text>}
-                  {item.description && <Text style={[s.cardBody, { marginTop: 4 }]}>{renderRichRN(item.description)}</Text>}
-                  {item.recurring && <Text style={[s.cardBody, { color: C.gold, fontWeight: '700' }]}>🔁 Weekly</Text>}
-                </View>
+              <View key={it.id} style={[s.card, { borderLeftWidth: 4, borderLeftColor: C.teal }]}>
+                <TouchableOpacity onPress={() => toggle(it.id)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {it.icon ? <View style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}><Text style={{ fontSize: 20 }}>{it.icon}</Text></View> : null}
+                  <Text style={[s.cardTitle, { flex: 1 }]}>{it.title}</Text>
+                  <Text style={{ color: C.teal, fontSize: 18, marginLeft: 12 }}>{open ? '▾' : '▸'}</Text>
+                </TouchableOpacity>
+                {open && (
+                  <View style={{ marginTop: 12 }}>
+                    {it.description && <Text style={s.cardBody}>{renderRichRN(it.description)}</Text>}
+                    {it.link_url && (
+                      <TouchableOpacity onPress={() => Linking.openURL(it.link_url)} style={{ backgroundColor: C.teal, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 16, marginTop: 12, alignSelf: 'flex-start' }}>
+                        <Text style={{ color: C.white, fontWeight: '700' }}>{it.link_label || 'Learn More'}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -1072,7 +1084,7 @@ const NAV = [
   { key: 'watch', label: 'Watch', icon: '▶️' },
   { key: 'give', label: 'Give', icon: '❤️' },
   { key: 'bible', label: 'Bible', icon: '📖' },
-  { key: 'events', label: 'Events', icon: '📅' },
+  { key: 'serve', label: 'Serve', icon: '🫶' },
   { key: 'prayer', label: 'Prayer', icon: '🙏' },
 ];
 
@@ -2389,7 +2401,7 @@ export default function App() {
       case 'give': return <GiveScreen member={member} setMember={setMember} onNavigate={setScreen} />;
       case 'bible': return <BibleScreen user={user} member={member} onNavigate={setScreen} />;
       case 'prayer': return <PrayerScreen user={user} member={member} onNavigate={setScreen} expandAlarmNonce={alarmExpandNonce} />;
-      case 'events': return <EventsScreen onNavigate={setScreen} />;
+      case 'serve': return <ServeScreen onNavigate={setScreen} />;
       case 'notifications': return <NotificationsScreen onNavigate={setScreen} member={member} />;
       case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} member={member} memberLoading={memberLoading} onNavigate={setScreen} />;
       default: return <HomeScreen onNavigate={setScreen} />;
