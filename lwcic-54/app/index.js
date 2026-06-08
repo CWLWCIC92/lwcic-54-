@@ -442,7 +442,7 @@ function HomeScreen({ onNavigate }) {
           {announcements.map(a => (
             <View key={a.id} style={s.card}>
               <Text style={s.cardTitle}>{a.title}</Text>
-              <Text style={s.cardBody}>{a.body || a.content}</Text>
+              <Text style={s.cardBody}>{renderRichRN(a.body || a.content)}</Text>
             </View>
           ))}
           <Text style={[s.sectionTitle, { marginTop: 20 }]}>Upcoming Events</Text>
@@ -539,6 +539,26 @@ function dayOfYearRotation(poolSize) {
 }
 
 // Phase G: fetch today's verse from a scripture pool with kjv_bible JOIN
+// Render announcement/event body text with tappable links:
+//   [label](url) -> a labeled link; bare http(s) URLs also become links.
+function renderRichRN(text) {
+  if (!text) return text;
+  const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s]+)/g;
+  const out = [];
+  let last = 0, m, key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const label = m[1] || m[3];
+    const url = m[2] || m[3];
+    out.push(
+      <Text key={key++} style={{ color: C.teal, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(url)}>{label}</Text>
+    );
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 async function fetchTodayScripture(poolTableName) {
   try {
     const { count } = await supabase
@@ -904,7 +924,7 @@ function EventsScreen({ onNavigate }) {
                   <Text style={s.cardTitle}>{item.title}</Text>
                   {(item.start_time || item.time) && <Text style={[s.cardBody, { color: C.teal }]}>{formatTime(item.start_time) || item.time}</Text>}
                   {item.location && <Text style={s.cardBody}>📍 {item.location}</Text>}
-                  {item.description && <Text style={[s.cardBody, { marginTop: 4 }]}>{item.description}</Text>}
+                  {item.description && <Text style={[s.cardBody, { marginTop: 4 }]}>{renderRichRN(item.description)}</Text>}
                   {item.recurring && <Text style={[s.cardBody, { color: C.gold, fontWeight: '700' }]}>🔁 Weekly</Text>}
                 </View>
               </View>
