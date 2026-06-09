@@ -889,8 +889,11 @@ function ServeScreen({ onNavigate }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
+  const [scripture, setScripture] = useState({ text: 'For, brethren, ye have been called unto liberty; only use not liberty for an occasion to the flesh, but by love serve one another.', ref: 'Galatians 5:13', reflection: null });
+  const [showReflection, setShowReflection] = useState(false);
 
   useEffect(() => {
+    fetchTodayScripture('serve_scripture_pool').then(v => { if (v) setScripture(v); });
     const load = async () => {
       const { data } = await supabase.from('serve_opportunities').select('*').eq('active', true).order('sort_order');
       if (data?.length) setItems(data);
@@ -915,10 +918,17 @@ function ServeScreen({ onNavigate }) {
       {loading ? <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} /> : (
         <ScrollView style={s.flex} contentContainerStyle={{ padding: 16 }}>
           <View style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: C.gold }}>
-            <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>
-              "For, brethren, ye have been called unto liberty; only use not liberty for an occasion to the flesh, but by love serve one another."
-            </Text>
-            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— Galatians 5:13 KJV</Text>
+            <Text style={{ color: C.white, fontSize: 15, lineHeight: 22, marginBottom: 8 }}>"{scripture.text}"</Text>
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700' }}>— {scripture.ref} KJV</Text>
+            {scripture.reflection ? (
+              <View>
+                <TouchableOpacity onPress={() => setShowReflection(v => !v)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                  <Text style={{ color: C.tealL, fontSize: 13, fontWeight: '700' }}>{showReflection ? 'Hide reflection' : 'Tap for reflection'}</Text>
+                  <Text style={{ color: C.tealL, fontSize: 13, marginLeft: 6 }}>{showReflection ? '▾' : '▸'}</Text>
+                </TouchableOpacity>
+                {showReflection ? <Text style={{ color: C.white, fontSize: 14, lineHeight: 21, marginTop: 8 }}>{scripture.reflection}</Text> : null}
+              </View>
+            ) : null}
           </View>
           {items.map(it => {
             const open = !!expanded[it.id];
