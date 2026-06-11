@@ -391,7 +391,7 @@ function HomeScreen({ onNavigate }) {
     ref: "Psalms 23:1-4"
   });
   useEffect(() => {
-    fetchTodayScripture('verse_of_the_day_pool').then(v => {
+    fetchTodayDevotional().then(v => {
       if (v) setTodayScripture(v);
     });
   }, []);
@@ -612,6 +612,32 @@ async function fetchTodayScripture(poolTableName) {
     return { text, ref, poolId: poolRow.id, reflection: poolRow.reflection || null };
   } catch (e) {
     console.log('[scripture pool] fetch failed:', e.message);
+    return null;
+  }
+}
+
+async function fetchTodayDevotional() {
+  try {
+    const { count } = await supabase
+      .from('votd_devotionals')
+      .select('*', { count: 'exact', head: true })
+      .eq('active', true);
+    if (!count) return null;
+
+    const idx = dayOfYearRotation(count);
+
+    const { data: row } = await supabase
+      .from('votd_devotionals')
+      .select('*')
+      .eq('rotation_key', idx)
+      .eq('active', true)
+      .maybeSingle();
+    if (!row) return null;
+
+    // Path B: scripture text + ref are stored on the devotional row — no kjv_bible lookup.
+    return { text: row.scripture_text, ref: row.scripture_ref, devotional: row };
+  } catch (e) {
+    console.log('[votd devotional] fetch failed:', e.message);
     return null;
   }
 }
@@ -1415,12 +1441,8 @@ function BibleScreen({ user, member, onNavigate }) {
 
   const loadDevotional = async () => {
     try {
-      const v = await fetchTodayScripture('verse_of_the_day_pool');
-      const pid = v && v.poolId;
-      if (!pid) { setDevotional(null); return; }
-      const res = await fetch(SURL + '/rest/v1/votd_devotionals?votd_pool_id=eq.' + pid + '&active=eq.true&limit=1', { headers: SH });
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) setDevotional(data[0]);
+      const v = await fetchTodayDevotional();
+      if (v && v.devotional) setDevotional(v.devotional);
       else setDevotional(null);
     } catch(e) { setDevotional(null); }
   };
