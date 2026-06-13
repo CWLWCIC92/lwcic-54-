@@ -1693,7 +1693,26 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
   const [lordsPrayerStep, setLordsPrayerStep] = React.useState(0);
   const [lordsPrayerComplete, setLordsPrayerComplete] = React.useState(false);
   const [lordsPrayerStarted, setLordsPrayerStarted] = React.useState(false);
-  const lp = LORDS_PRAYER[lordsPrayerStep];
+  const [lpSlides, setLpSlides] = React.useState([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('lords_prayer_slides')
+          .select('*')
+          .eq('active', true)
+          .order('position', { ascending: true });
+        if (!cancelled && !error && Array.isArray(data)) setLpSlides(data);
+      } catch (e) {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const lpContent = lpSlides.filter(s => Array.isArray(s.scriptures) && s.scriptures.length > 0);
+  const lpAmen = lpSlides.find(s => !Array.isArray(s.scriptures) || s.scriptures.length === 0) || null;
+  const lpDayIdx = dayOfYearRotation(8);
+  const lp = lpContent[lordsPrayerStep] || null;
+  const lpSc = (lp && Array.isArray(lp.scriptures) && lp.scriptures.length) ? lp.scriptures[lpDayIdx % lp.scriptures.length] : null;
   // Block 1c.6 — My Prayer Requests history (moved from Profile)
   const [prayers, setPrayers] = React.useState([]);
   const [prayersLoading, setPrayersLoading] = React.useState(true);
@@ -1933,34 +1952,38 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
         </View>
       )}
 
-      {lordsPrayerOpen && lordsPrayerStarted && !lordsPrayerComplete && (
+      {lordsPrayerOpen && lordsPrayerStarted && !lordsPrayerComplete && lp && (
         <View style={{ backgroundColor: '#FAEEDA', borderWidth: 1, borderColor: '#E8D29A', borderRadius: 16, padding: 18, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <View style={{ backgroundColor: '#F3DCA6', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 11 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#5A3406' }}>{lp.element}</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#5A3406' }}>{lp.category}</Text>
             </View>
-            <Text style={{ fontSize: 12, color: '#9A6A1E' }}>{lordsPrayerStep + 1} / {LORDS_PRAYER.length}</Text>
+            <Text style={{ fontSize: 12, color: '#9A6A1E' }}>{lordsPrayerStep + 1} / {lpContent.length}</Text>
           </View>
           <View style={{ height: 5, backgroundColor: '#ECDFC0', borderRadius: 3, marginBottom: 16, overflow: 'hidden' }}>
-            <View style={{ height: 5, width: (((lordsPrayerStep + 1) / LORDS_PRAYER.length) * 100) + '%', backgroundColor: '#8A5A12', borderRadius: 3 }} />
+            <View style={{ height: 5, width: (((lordsPrayerStep + 1) / lpContent.length) * 100) + '%', backgroundColor: '#8A5A12', borderRadius: 3 }} />
           </View>
-          <Text style={{ fontSize: 24, fontWeight: '700', fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3A2206', marginBottom: 16 }}>“{lp.phrase}”</Text>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A5A12', marginBottom: 4 }}>Pray this</Text>
-          <Text style={{ fontSize: 15, lineHeight: 22, color: '#3F2A0E', marginBottom: 16 }}>{lp.prayer}</Text>
-          <View style={{ backgroundColor: '#FBF4E2', borderWidth: 1, borderColor: '#E3CB92', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A5A12', marginBottom: 4 }}>Make it personal</Text>
-            <Text style={{ fontSize: 15, lineHeight: 24, color: '#3F2A0E' }}>{lp.prompt}</Text>
-          </View>
+          <Text style={{ fontSize: 24, fontWeight: '700', fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3A2206', marginBottom: 16 }}>“{lp.title}”</Text>
+          {lpSc && (
           <View style={{ borderLeftWidth: 3, borderLeftColor: '#8A5A12', paddingLeft: 13, marginBottom: 18 }}>
-            <Text style={{ fontSize: 15, lineHeight: 22, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#6A4A1C', marginBottom: 5 }}>{lp.scripture}</Text>
-            <Text style={{ fontSize: 13, color: '#8A5A12' }}>{lp.ref}</Text>
+            <Text style={{ fontSize: 16, lineHeight: 25, fontStyle: 'italic', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#3F2A0E', marginBottom: 6 }}>{lpSc.text}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#8A5A12' }}>{lpSc.ref}</Text>
           </View>
+          )}
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#8A5A12', marginBottom: 8 }}>Prayer Points</Text>
+          {lpSc && Array.isArray(lpSc.prayer_points) && lpSc.prayer_points.map((pt, i) => (
+            <View key={i} style={{ flexDirection: 'row', marginBottom: 9, paddingRight: 4 }}>
+              <Text style={{ fontSize: 15, lineHeight: 22, color: '#8A5A12', marginRight: 8 }}>•</Text>
+              <Text style={{ flex: 1, fontSize: 15, lineHeight: 22, color: '#3F2A0E' }}>{pt}</Text>
+            </View>
+          ))}
+          <View style={{ height: 8 }} />
           <View style={{ flexDirection: 'row' }}>
             <TouchableOpacity onPress={() => { if (lordsPrayerStep === 0) setLordsPrayerStarted(false); else setLordsPrayerStep(s => s - 1); }} style={{ flex: 1, borderWidth: 1.5, borderColor: '#DCC489', borderRadius: 12, padding: 14, alignItems: 'center', marginRight: 8 }}>
               <Text style={{ color: '#6A4310', fontSize: 14, fontWeight: '700' }}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { if (lordsPrayerStep < LORDS_PRAYER.length - 1) setLordsPrayerStep(s => s + 1); else setLordsPrayerComplete(true); }} style={{ flex: 2, backgroundColor: '#8A5A12', borderRadius: 12, padding: 14, alignItems: 'center' }}>
-              <Text style={{ color: '#FBF1DA', fontSize: 14, fontWeight: '700' }}>{lordsPrayerStep < LORDS_PRAYER.length - 1 ? 'Next' : 'Amen'}</Text>
+            <TouchableOpacity onPress={() => { if (lordsPrayerStep < lpContent.length - 1) setLordsPrayerStep(s => s + 1); else setLordsPrayerComplete(true); }} style={{ flex: 2, backgroundColor: '#8A5A12', borderRadius: 12, padding: 14, alignItems: 'center' }}>
+              <Text style={{ color: '#FBF1DA', fontSize: 14, fontWeight: '700' }}>{lordsPrayerStep < lpContent.length - 1 ? 'Next' : 'Amen'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1968,8 +1991,8 @@ function PrayerScreen({ user, member, onNavigate, expandAlarmNonce }) {
 
       {lordsPrayerOpen && lordsPrayerComplete && (
         <View style={{ backgroundColor: '#FAEEDA', borderWidth: 1, borderColor: '#E8D29A', borderRadius: 16, padding: 22, marginBottom: 12, alignItems: 'center' }}>
-          <Text style={{ fontSize: 22, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#633806', marginBottom: 8, textAlign: 'center' }}>Amen.</Text>
-          <Text style={{ fontSize: 14, lineHeight: 22, fontStyle: 'italic', color: '#6A4A1C', textAlign: 'center', marginBottom: 16 }}>You have prayed through the pattern Jesus taught. Carry it with you today.</Text>
+          <Text style={{ fontSize: 22, fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', color: '#633806', marginBottom: 8, textAlign: 'center' }}>{lpAmen ? lpAmen.title + '.' : 'Amen.'}</Text>
+          <Text style={{ fontSize: 14, lineHeight: 22, fontStyle: 'italic', color: '#6A4A1C', textAlign: 'center', marginBottom: 16 }}>{lpAmen && lpAmen.closing_line ? lpAmen.closing_line : 'You have prayed through the pattern Jesus taught. Carry it with you today.'}</Text>
           <TouchableOpacity onPress={() => { setLordsPrayerStep(0); setLordsPrayerComplete(false); setLordsPrayerStarted(true); }} style={{ borderWidth: 1.5, borderColor: '#DCC489', borderRadius: 12, padding: 14, alignItems: 'center', width: '100%' }}>
             <Text style={{ color: '#6A4310', fontSize: 14, fontWeight: '700' }}>Pray it again</Text>
           </TouchableOpacity>
